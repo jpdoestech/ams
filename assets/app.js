@@ -29,7 +29,7 @@ const API={async list(t,r){if(DEMO)return S[t].filter(x=>!r||(x.date>=r[0]&&x.da
 async up(t,rows){const k=({attendance:"emp_id,date",supervisor_stores:"sup_id,store_id",emp_supervisors:"emp_id,sup_id",employee_pay:"emp_id",attendance_pay:"emp_id,date"})[t]||"id";if(DEMO){rows.forEach(x=>{const i=S[t].findIndex(y=>k.split(",").every(f=>y[f]==x[f]));i<0?S[t].push(x):S[t][i]=x});save();return}const{error}=await sb.from(t).upsert(rows,{onConflict:k});if(error)throw error},
 async del(t,f){if(DEMO){S[t]=S[t].filter(x=>!Object.keys(f).every(c=>f[c].includes(x[c])));save();return}let q=sb.from(t).delete();for(const c in f)q=q.in(c,f[c]);const{error}=await q;if(error)throw error}};
 /* ---- state ---- */
-const now=new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Manila"}));let V="dash",E=[],H=[],A={},tool="PRESENT",sel=null,drag=false,pend=[],flt={q:"",site:"",department:"",position:""},user=null,P=DEMO?{id:"demo",email:"demo@local",active:true}:null,CM=[],FD=[],ROLE="superadmin",pg={emp:1,att:1,sum:1},ps={emp:50,att:50,sum:50},SD=[],LK=[],ST=[],SV=[],SS=[],ES=[],DB=[],RL=[],LOCKS=[],EP={},AP={},PH=[],CLOSED=[];
+const now=new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Manila"}));let V="dash",E=[],H=[],A={},tool="DUTY",sel=null,drag=false,pend=[],flt={q:"",site:"",department:"",position:""},user=null,P=DEMO?{id:"demo",email:"demo@local",active:true}:null,CM=[],FD=[],ROLE="superadmin",pg={emp:1,att:1,sum:1},ps={emp:50,att:50,sum:50},SD=[],LK=[],ST=[],SV=[],SS=[],ES=[],DB=[],RL=[],LOCKS=[],EP={},AP={},PH=[],CLOSED=[];
 let cut={m:`${now.getFullYear()}-${pad(now.getMonth()+1)}`,h:now.getDate()<=15?1:2};
 function days(){const[y,m]=cut.m.split("-").map(Number),last=new Date(y,m,0).getDate(),a=cut.h==1?1:16,b=cut.h==1?15:last;return[...Array(b-a+1)].map((_,i)=>`${cut.m}-${pad(a+i)}`)}
 const rng=()=>{const d=days();return[d[0],d[d.length-1]]};
@@ -96,8 +96,8 @@ function eform(id){const e=E.find(x=>x.id==id)||{status:"Active",time_in:"08:00"
 function att(){const ds=days(),sites=[...new Set(E.map(e=>e.site).filter(Boolean))];
  $("mn").innerHTML=`<h2>Attendance Management</h2><div class="row"><input type="month" id="cm" value="${cut.m}"><select id="ch"><option value="1" ${cut.h==1?"selected":""}>1–15</option><option value="2" ${cut.h==2?"selected":""}>16–end</option></select>${filterBar()}
  <button class="btn" data-act="aexp">Export</button>${W()?'<button class="btn" data-act="aimp">Import</button><button class="btn" data-act="hol">Holidays</button>':""}${SAD()?(isLocked(days()[0])?'<span class="tag">🔒 Finalized cut-off</span>':'<button class="btn" data-act="lock">Lock cut-off</button>'):(isLocked(days()[0])?'<span class="tag">🔒 Locked</span>':"")}${CFG.SHEETS&&W()&&!DEMO?'<button class="btn" data-act="sync">Sync to Sheets</button>':""}</div>
- <div class="row">${W()?[...TY,"DUTY"].map(t=>`<button class="pill ${t==tool?"on":""}" data-t="${t}">${t}</button>`).join(""):'<span class="mu">View-only role: right-click a cell to comment</span>'}<span class="mu" id="si"></span><span class="mu" id="cnt" style="margin-left:auto"></span></div>
- <div class="wrap"><table id="gt"></table></div><div id="pgb"></div><div class="mu" style="margin-top:8px;font-size:12px">Blank = assumed present; actual duty is unverified and excluded from pay. Pick a transaction, then drag across dates (touch: tap a cell). Right-click a cell for the quick menu.</div>`;
+ <div class="row">${W()?["DUTY",...TY.filter(t=>t!=="PRESENT"),"CLEAR"].map(t=>`<button class="pill ${t==tool?"on":""}" data-t="${t}" aria-pressed="${t==tool}"${t==="CLEAR"?' title="Remove the attendance entry and its pay snapshot"':""}>${t==="CLEAR"?"Clear entry":t}</button>`).join(""):'<span class="mu">View-only role: right-click a cell to comment</span>'}<span class="mu" id="si"></span><span class="mu" id="cnt" style="margin-left:auto"></span></div>
+ <div class="wrap"><table id="gt"></table></div><div id="pgb"></div><div class="mu" style="margin-top:8px;font-size:12px">DUTY records actual work. Blank = assumed present, unverified and excluded from pay. Select Clear entry to remove a record after confirmation. Click or drag across dates (touch: tap); right-click for the quick menu.</div>`;
  $("cm").onchange=e=>{cut.m=e.target.value||cut.m;reloadAtt()};$("ch").onchange=e=>{cut.h=+e.target.value;reloadAtt()};bindF("att");grid()}
 const reloadAtt=()=>guard(async()=>{pg.att=1;await load();att()});
 function hm(){const m={};H.forEach(h=>m[h.location+"|"+h.date]=h);return m}
@@ -109,15 +109,31 @@ function cells(){if(!sel)return[];const[r1,c1,r2,c2]=sel,o=[];for(let r=Math.min
 function paint(){document.querySelectorAll("td.c.sel").forEach(t=>t.classList.remove("sel"));const cs=cells();cs.forEach(([r,c])=>{const t=document.querySelector(`td[data-r="${r}"][data-c="${c}"]`);t&&t.classList.add("sel")});const s=$("si");if(s)s.textContent=cs.length?cs.length+" selected":""}
 const byEmp=(cl,el,ds)=>{const m={};cl.forEach(([r,c])=>(m[el[r].id]=m[el[r].id]||[]).push(ds[c]));return m};
 const delCells=(t,m)=>Promise.all(Object.entries(m).map(([id,dts])=>API.del(t,{emp_id:[id],date:dts})));
-async function apply(cs,type,x){if(!W())return toast("View-only role");const ds=days(),el=slice("att",fe());sel=null;let kNA=0,kLk=0,kRv=0;
- cs=cs.filter(([r,c])=>{const e=el[r],d=ds[c];if(type!="N/A"&&isNA(e,d)){kNA++;return false}if(isLocked(d)){kLk++;return false}const v=A[e.id+"|"+d];if(v&&v.reviewed){kRv++;return false}return true});
- const sk=[kNA&&kNA+" N/A day(s)",kLk&&kLk+" locked day(s)",kRv&&kRv+" reviewed duty entr"+(kRv>1?"ies":"y")].filter(Boolean).join(", ");
+async function apply(cs,type,x){
+ if(!W())return toast("View-only role");
+ if(type==="PRESENT"||(!TY.includes(type)&&type!=="CLEAR"))return toast("Use DUTY to record work or Clear entry to remove a record");
+ const ds=days(),el=slice("att",fe()),clearing=type==="CLEAR";sel=null;
+ let kNA=0,kLk=0,kRv=0,kEmpty=0;
+ cs=cs.filter(([r,c])=>{
+  const e=el[r],d=ds[c],v=A[e.id+"|"+d];
+  if((clearing||type!=="N/A")&&isNA(e,d)){kNA++;return false}
+  if(isLocked(d)||(v?.segments||[]).some(s=>isLocked(s.date))){kLk++;return false}
+  if(v?.reviewed){kRv++;return false}
+  if(clearing&&!v){kEmpty++;return false}
+  return true;
+ });
+ const sk=[kNA&&kNA+" N/A day(s)",kLk&&kLk+" locked day(s)",kRv&&kRv+" reviewed duty entr"+(kRv>1?"ies":"y"),kEmpty&&kEmpty+" empty day(s)"].filter(Boolean).join(", ");
  if(!cs.length){grid();return toast(sk?"Nothing applied; skipped "+sk:"Nothing to apply")}
- if(cs.length>=20&&!await cf(`Apply ${type} to ${cs.length} date(s)?`)){grid();return}
- guard(async()=>{
-  const changes=cs.map(([r,c])=>{const e=el[r],date=ds[c],clear=type=="PRESENT"&&!isRD(e,date);return changeFor(e.id,date,clear?null:{...BLANK,type,late:x?.late||0,ut:x?.ut||0})});
-  await saveAttendance(changes);await load();if(sk)toast("Applied; skipped "+sk);grid();
- })}
+ const changes=cs.map(([r,c])=>changeFor(el[r].id,ds[c],clearing?null:{...BLANK,type,late:x?.late||0,ut:x?.ut||0}));
+ if(clearing){
+  if(!await cf(`Clear ${cs.length} attendance entr${cs.length===1?"y":"ies"}? This removes their status, actual punches and associated pay snapshots. Each day returns to its automatic blank, rest-day or N/A display.${sk?" Skipped: "+sk+".":""}`,{title:"Clear attendance entries?",confirmText:"Clear entries",destructive:true})){grid();return}
+ }else if(cs.length>=20&&!await cf(`Apply ${type} to ${cs.length} date(s)?`)){grid();return}
+ return guard(async()=>{
+  await saveAttendance(changes);await load();grid();
+  if(clearing)toast(`Cleared ${changes.length} entr${changes.length===1?"y":"ies"}${sk?"; skipped "+sk:""}`);
+  else if(sk)toast("Applied; skipped "+sk);
+ });
+}
 /* ---- late/undertime modal ---- */
 const SC=[["08:00","12:00"],["13:00","17:00"]],mn=v=>{if(!v)return 0;const[a,b]=v.split(":");return+a*60+ +b};
 function lateM(){modal(`<h3 style="margin:0">Late / Undertime</h3><div class="mu" style="margin-bottom:8px">${pend.length} date(s) · same times applied to all</div><div class="wrap" style="max-height:none"><table><tr><th>Shift</th><th>Sched In</th><th>Sched Out</th><th>Actual In</th><th>Actual Out</th><th>Late</th><th>UT</th></tr>${shiftsFor(pend[0]).map((s,i)=>`<tr><td>${i+1}</td><td><input type=time id="si${i}" value="${s[0]}"></td><td><input type=time id="so${i}" value="${s[1]}"></td><td><input type=time id="ai${i}" value="${s[0]}"></td><td><input type=time id="ao${i}" value="${s[1]}"></td><td id="l${i}">0</td><td id="u${i}">0</td></tr>`).join("")}</table></div><p><b>Total:</b> Late <span id="tl">0</span> min · UT <span id="tu">0</span> min</p><div style="text-align:right"><button class="btn" data-act="cl">Cancel</button> <button class="btn p" data-act="lsave">Save</button></div>`);calc()}
@@ -297,7 +313,7 @@ document.addEventListener("change",e=>{const t=e.target;if(t.closest&&t.closest(
 /* ---- events ---- */
 document.addEventListener("click",e=>{const t=e.target;if(!t.closest("#menu"))$("menu").style.display="none";
  if(t.dataset.v){V=t.dataset.v;sel=null;guard(async()=>{await load();shell()})}
- else if(t.dataset.t){tool=t.dataset.t;document.querySelectorAll(".pill").forEach(p=>p.classList.toggle("on",p.dataset.t==tool))}
+ else if(t.dataset.t){tool=t.dataset.t;document.querySelectorAll("[data-t]").forEach(p=>{p.classList.toggle("on",p.dataset.t==tool);p.setAttribute("aria-pressed",String(p.dataset.t==tool))})}
  else if(t.dataset.stab){STAB=t.dataset.stab;stdv()}else if(t.dataset.smode){SMODE=t.dataset.smode;srows()}else if(t.dataset.mv){const rw=t.closest("[data-row]"),dd=+t.dataset.mv;if(dd<0&&rw.previousElementSibling)rw.parentNode.insertBefore(rw,rw.previousElementSibling);if(dd>0&&rw.nextElementSibling)rw.parentNode.insertBefore(rw.nextElementSibling,rw)}else if(t.dataset.act=="sdel"){t.closest("tr").remove();schCalc()}else if(t.dataset.pg){pg[t.dataset.pg]=Math.max(1,pg[t.dataset.pg]+ +t.dataset.d);sel=null;refresh(t.dataset.pg)}else if(t.dataset.act)act(t.dataset.act,t.dataset.id)});
 function act(a,id){guard(async()=>{if(["eadd","eedit","edel","esave","eimp","aimp","hol","hadd","hdel","lsave","dsave","ssave","sadd","lkadd","lkdel","stsave","stdel","stimp","supsave","supdel"].includes(a)&&!W())throw"View-only role";if(["fld","fadd","frn","ftog","lock","unlock","rulesave","rulesw"].includes(a)&&!SAD())throw"Superadmin only";switch(a){
  case"esave":{if(id&&!await cf("Save changes to this employee?"))break;const o={id:id||uid()};F.forEach(f=>o[f[0]]=$("f_"+f[0]).value.trim()||null);if(!o.emp_no||!o.last_name)throw"Employee No and Last Name are required";o.status=o.status||"Active";
@@ -380,6 +396,6 @@ document.addEventListener("pointerdown",e=>{const t=e.target.closest&&e.target.c
 document.addEventListener("pointermove",e=>{if(!drag)return;const t=document.elementFromPoint(e.clientX,e.clientY),c=t&&t.closest&&t.closest("td.c");if(c){sel[2]=+c.dataset.r;sel[3]=+c.dataset.c;paint()}});
 document.addEventListener("pointerup",()=>{if(!drag)return;drag=false;const cs=cells();if(!cs.length)return;if(tool=="LATE/UT"){pend=cs;lateM()}else if(tool=="DUTY")dutyM(cs);else apply(cs,tool)});
 document.addEventListener("pointercancel",()=>{drag=false;sel=null;paint()});
-document.addEventListener("contextmenu",e=>{const t=e.target.closest&&e.target.closest("td.c");if(!t)return;e.preventDefault();const r=+t.dataset.r,c=+t.dataset.c,cs=cells();pend=cs.some(x=>x[0]==r&&x[1]==c)?cs:[[r,c]];const m=$("menu");m.innerHTML=(W()?[...TY,"⏱ Duty / hours…"]:[]).concat("💬 Comment").map(x=>`<div>${x}</div>`).join("");m.style.left=e.clientX+"px";m.style.top=e.clientY+"px";m.style.display="block"});
-$("menu").addEventListener("click",e=>{if(e.target.tagName!="DIV")return;$("menu").style.display="none";const t=e.target.textContent;t.includes("Comment")?cmtM(pend[0]):t.includes("Duty")?dutyM(pend):t=="LATE/UT"?lateM():apply(pend,t)});
+document.addEventListener("contextmenu",e=>{const t=e.target.closest&&e.target.closest("td.c");if(!t)return;e.preventDefault();const r=+t.dataset.r,c=+t.dataset.c,cs=cells();pend=cs.some(x=>x[0]==r&&x[1]==c)?cs:[[r,c]];const m=$("menu");m.innerHTML=(W()?["⏱ Duty / hours…",...TY.filter(t=>t!=="PRESENT"),"Clear entry"]:[]).concat("💬 Comment").map(x=>`<div>${x}</div>`).join("");m.style.left=e.clientX+"px";m.style.top=e.clientY+"px";m.style.display="block"});
+$("menu").addEventListener("click",e=>{if(e.target.tagName!="DIV")return;$("menu").style.display="none";const t=e.target.textContent;t.includes("Comment")?cmtM(pend[0]):t.includes("Duty")?dutyM(pend):t=="LATE/UT"?lateM():apply(pend,t==="Clear entry"?"CLEAR":t)});
 (async()=>{try{if(!DEMO){const{data}=await sb.auth.getSession();user=data.session&&data.session.user;if(user){await loadP();if(P&&P.active)await load()}}else await load()}catch(e){toast(e.message)}shell()})();

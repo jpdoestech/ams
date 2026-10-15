@@ -5,7 +5,7 @@
     if(active||!queue.length)return;
     active=true;
     const {message,options,resolve}=queue.shift(),previousFocus=document.activeElement;
-    const deleting=/^Delete\b/i.test(message),title=options.title||(deleting?'Delete record?':'Confirm changes');
+    const deleting=options.destructive??/^Delete\b/i.test(message),title=options.title||(deleting?'Delete record?':'Confirm changes');
     const layer=document.createElement('div');layer.className='confirm-layer';
     const dialog=document.createElement('section');dialog.className='confirm-dialog';
     dialog.setAttribute('role','alertdialog');dialog.setAttribute('aria-modal','true');
