@@ -1,0 +1,6 @@
+.agents/*
+node_modules/
+test-results/
+.env*
+!.env.example
+public/

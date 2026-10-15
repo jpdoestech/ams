@@ -1,0 +1,30 @@
+{
+  "name": "ams",
+  "version": "1.0.0",
+  "description": "Static web app (`index.html`, no build) + Supabase (Auth + Postgres + RLS) + optional Google Sheets sync. Runs in **demo mode** (browser-only data, role switcher in the sidebar) until `CFG.URL`/`CFG.KEY` are set.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node scripts/schema.js --check && node --test tests/*.test.js",
+    "schema": "node scripts/schema.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jpdoestech/ams.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jpdoestech/ams/issues"
+  },
+  "homepage": "https://github.com/jpdoestech/ams#readme",
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "jsdom": "^29.1.1"
+  },
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  }
+}
