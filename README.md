@@ -9,6 +9,8 @@ index.html                      Frontend entry point
 assets/
   app.js                        Existing screens, state, Supabase adapter
   data-tools.js                 Atomic saves, staged import, DTR/CSV exports
+  analytics.js                  Date-bounded attendance and workforce measures
+  workspace-features.js         Analytics, audit controls, duty list, comment popovers
   confirm-dialog.js             Accessible in-app confirmation pop-ups
   duty-engine.js                Shared, testable browser calculation core
   theme.js                      Saved light/dark/system appearance before paint
@@ -20,7 +22,7 @@ api/
   sync.js                       Authenticated Supabase → Google Sheets sync
 supabase/
   schema.sql                    Generated complete fresh-install schema
-  migrations/                   Ordered additive migrations 001–005
+  migrations/                   Ordered additive migrations 001–006
 scripts/                        Static build and schema-generation scripts
 tests/                          PostgreSQL, calculation, DOM, and API tests
 docs/DEPLOYMENT.md               Supabase, Vercel, Google setup and rollout

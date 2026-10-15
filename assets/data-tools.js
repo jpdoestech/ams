@@ -30,7 +30,7 @@ async function saveAttendance(changes,overwriteReviewed=false){
         if((row.segments||[]).some(s=>isLocked(s.date)))throw Error('Cut-off is locked');
         row.revision=Date.now()*1000+Math.floor(Math.random()*1000);draft.attendance.push(row);
       }
-      draft.audit_log.push({id:uid(),at:new Date().toISOString(),user_email:P?.email||'demo',action:'attendance.save',detail:{old:old||null,new:draft.attendance.find(r=>r.emp_id==c.emp_id&&r.date==c.date)||null}});
+      if(auditAllowed("attendance",draft))draft.audit_log.push({id:uid(),at:new Date().toISOString(),user_email:P?.email||'demo',action:'attendance.save',detail:{old:old||null,new:draft.attendance.find(r=>r.emp_id==c.emp_id&&r.date==c.date)||null}});
     }
     // Persist once before replacing live memory. Quota failure leaves the old state intact.
     localStorage.setItem('ams',JSON.stringify(draft));S=draft;

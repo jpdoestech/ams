@@ -34,7 +34,7 @@ The Schedule editor accepts multiple duty blocks and break blocks. Late/undertim
 
 Choose month/cut-off and filter by employee, site, department, or position. **DUTY is the default tool:** click/drag to record actual in/out and break minutes for one or multiple dates. Other status tools remain available for quick painting. PRESENT is assigned automatically when duty is saved without late/undertime; it is not a painting or reset tool. Right-click opens the contextual editor or comments. A focused day cell can open duty using Enter/Space. Columns and headers remain sticky; small screens retain the scrollable matrix and modal editor.
 
-**Clear entry** is available in the toolbar and right-click menu. Select it and click/drag the dates to clear, then confirm in the in-app modal. It removes attendance status, punches, and the associated pay snapshot together, returning the day to its automatic blank or rest-day display. Reviewed, locked, and empty days are skipped. Clearing leaves an audit record; cancelling keeps the data unchanged. Save duty still saves directly without confirmation.
+**Clear entry** is available in the toolbar and right-click menu. Select it and click/drag the dates to clear, then confirm in the in-app modal. It removes attendance status, punches, and the associated pay snapshot together, returning the day to its automatic blank or rest-day display. Reviewed, locked, and empty days are skipped. Clearing leaves an audit record when Attendance capture is enabled; cancelling keeps the data unchanged. Save duty still saves directly without confirmation.
 
 Blank cells retain the old assumed-Present display, but **are unverified and excluded from worked-pay estimates**. N/A before hire/after separation is excluded from absence analysis. Rest days come from each employee's schedule.
 
@@ -44,7 +44,11 @@ The override dropdown shows the code and work-day classification, for example `R
 
 Saving duty/status updates attendance and pay together. If someone changed the record since it was loaded, saving fails and requires a reload. A failed batch writes nothing.
 
-Paid/unpaid leave are recorded as LEAVE and LEAVE-U. The duty-pay summary is not a leave-pay calculator; leave eligibility and leave pay remain external policy inputs. AWOL/P is entered explicitly, never inferred from blanks.
+Choose **Leave · with pay** or **Leave · without pay** in the toolbar or context menu. They retain the LEAVE and LEAVE-U storage codes and appear as LV-P/LV-U in the matrix. The duty-pay summary is not a leave-pay calculator; leave eligibility and leave pay remain external policy inputs. AWOL/P is entered explicitly, never inferred from blanks.
+
+The authorized duty override opens a list with separate **Code** and **Description** columns. Pick Auto to derive the code from the calendar, or choose an override and provide its reason. Save duty applies immediately.
+
+Viewers can click a day to post a comment. Comments are saved before success is reported. Hover or focus a day with a comment icon to read saved notes; click the icon to pin the popover, and use **Open comments** to add another note. Escape or clicking outside closes it. Failed saves keep the draft available for retry.
 
 ## Holidays and summaries
 
@@ -73,7 +77,21 @@ Exports support current filters and custom dates:
 
 Superadmin **Lock cut-off** calls database finalization. It rejects incomplete ordinary-day duty, missing wages for worked days, and unresolved holiday eligibility, then locks the period and snapshots holiday entitlement. A shift crossing midnight into a finalized date is protected even if its start date is outside that cut-off.
 
-Finalized periods cannot be reopened through the app. Database-owner corrections must be recorded as separate audited adjustments; a dedicated adjustment UI is not included. Users → Audit log shows successful data changes attributed by the database, including old/new values. Failed transactions leave neither partial data nor misleading success audit entries.
+Finalized periods cannot be reopened through the app. Database-owner corrections must be recorded as separate audited adjustments; a dedicated adjustment UI is not included. **Audit logs** is a separate superadmin-only screen. It shows the latest 100 successful data changes attributed by the database, including old/new values, with a text filter. Failed transactions leave neither partial data nor misleading success audit entries.
+
+Superadmins can turn audit capture off or select Employees, Attendance, Schedules, Standards, Pay rules & wages, Users, Comments, and Cut-off locks. Settings apply to new changes; existing history is retained. Settings changes always leave an audit entry, including when capture is disabled. These controls are enforced by database triggers and row-level security.
+
+## Analytics
+
+Open **Analytics**, choose From/To dates (up to 366 days), optionally filter by employee or assignment, and click Apply. Export CSV downloads the selected view and applied range.
+
+- **Employee attendance**: scheduled and actual worked days, recorded attendance percentage, absence/AWOL, paid and unpaid leave, unverified days, work/OT hours, and late/undertime minutes.
+- **Manpower / workforce**: headcount at the start and end of the range, hires, separations, and recorded hours by assignment and department.
+- **Daily trend**: daily headcount, scheduled employees, recorded work, absence, leave, unverified days, and hours.
+
+Recorded attendance divides verified worked scheduled days by scheduled days. Rest days, non-working holidays, explicit day-off, and N/A entries are excluded from scheduled days. Blanks never count as recorded work. Overnight hours are allocated to their actual calendar dates. Employment dates bound headcount; an employee's separation date is their last applicable day. Assignment and department reflect current records rather than historical transfers. Analytics contains no wage/pay amounts and is available to viewers.
+
+The dashboard shows cut-off attendance totals, assignment headcount, and recent daily attendance. The employee directory is available in Employees.
 
 ## Google Sheets
 

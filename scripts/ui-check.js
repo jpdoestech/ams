@@ -18,7 +18,7 @@ async function run(){
   assert.equal(await page.locator('[data-nav-toggle]').isVisible(),true);
   await page.selectOption('select[data-theme-preference]','dark');await page.reload();await page.waitForSelector('.metric-grid');
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');await screenshot('dashboard-dark');
-  for(const view of ['emp','att','sum','std','usr']){
+  for(const view of ['emp','att','sum','std','usr','analytics','audit']){
     await page.locator('.side-nav [data-v="'+view+'"]').click();await page.waitForSelector('#mn[data-view="'+view+'"]');
     await page.locator('#mn .wrap').first().waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Desktop overflow: '+view);
@@ -99,10 +99,48 @@ async function run(){
   await page.locator('[data-nav-toggle]').click();await page.keyboard.press('Escape');assert.equal(await page.locator('[data-nav-toggle]').getAttribute('aria-expanded'),'false');
   // Clicks on nested icons must invoke the same actions as button labels.
   await page.setViewportSize({width:1440,height:1000});
+  await page.locator('.side-nav [data-v="std"]').click();await page.locator('#mn .wrap table tbody tr').first().waitFor();
+  assert.ok(await page.locator('#mn .wrap table tbody tr').first().evaluate(el=>el.getBoundingClientRect().height<=36),'Compact standards row height');
+  await page.locator('[data-stab="sto"]').click();
+  assert.match(await page.locator('#mn .wrap tbody').innerText(),/JDC/);
+  assert.equal((await page.locator('#mn .wrap tbody').innerText()).includes('DELA CRUZ'),false);
+  await page.locator('.side-nav [data-v="sum"]').click();await page.locator('#stot .card').first().waitFor();
+  assert.ok(await page.locator('#stot .card').first().evaluate(el=>el.getBoundingClientRect().height<=34),'Compact summary totals');await screenshot('summary-compact');
+  await page.locator('.side-nav [data-v="analytics"]').click();await page.locator('#analytics-table tbody').waitFor();
+  await page.locator('#analytics-from').fill('2026-09-01');await page.locator('#analytics-to').fill('2026-10-15');
+  await page.locator('#analytics-form button[type="submit"]').click();await page.waitForFunction(()=>document.querySelector('#analytics-status').textContent.startsWith('2026-09-01'));
+  await screenshot('analytics-employees');
+  await page.locator('[data-analytics-tab="workforce"]').click();assert.match(await page.locator('#analytics-table').innerText(),/Headcount at end/);await screenshot('analytics-workforce');
+  await page.locator('[data-analytics-tab="daily"]').click();assert.equal(await page.locator('#analytics-table tbody tr').count(),45);
+  await page.locator('.side-nav [data-v="audit"]').click();await page.locator('#audit-enabled').waitFor();
+  await page.locator('#audit-enabled').uncheck();await page.locator('#audit-form button[type="submit"]').click();await page.waitForFunction(()=>document.querySelector('#audit-body').textContent.includes('audit_settings.update'));
+  assert.equal(await page.locator('#audit-enabled').isChecked(),false);await screenshot('audit-controls');
+  await page.locator('#audit-enabled').check();await page.locator('#audit-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#audit-enabled').checked);
+  await page.evaluate(()=>{ROLE='viewer';V='att';shell()});await page.waitForSelector('#gt');
+  assert.equal(await page.locator('.side-nav [data-v="audit"]').count(),0);
+  await page.locator('td[data-r="0"][data-c="0"]').click();await page.locator('#cb').fill('Viewer note <safe>');
+  await page.locator('[data-act="cadd"]').click();await page.waitForFunction(()=>!document.querySelector('#ov').classList.contains('on'));
+  await page.locator('td.c.cm').first().hover();await page.locator('#comment-popover').waitFor();assert.match(await page.locator('#comment-popover').innerText(),/Viewer note <safe>/);
+  await screenshot('viewer-comment-popover');
+  await page.keyboard.press('Escape');assert.equal(await page.locator('#comment-popover').count(),0);
+  await page.reload();await page.waitForSelector('.metric-grid');await page.evaluate(()=>{ROLE='viewer';V='att';shell()});
+  await page.locator('td.c.cm').first().hover();await page.locator('#comment-popover').waitFor();assert.match(await page.locator('#comment-popover').innerText(),/Viewer note <safe>/);
+  await page.evaluate(()=>{ROLE='superadmin';shell()});await page.waitForSelector('#gt');
+  await page.locator('td[data-r="0"][data-c="0"]').click();await page.locator('#override-toggle').click();
+  await page.locator('[data-override="RH"]').click();assert.equal(await page.locator('#dov').inputValue(),'RH');await screenshot('duty-code-columns');
+  await page.locator('#override-toggle').click();await screenshot('duty-code-list-open');await page.keyboard.press('Escape');assert.equal(await page.locator('#override-list').isVisible(),false);assert.equal(await page.locator('#ov').isVisible(),true);await page.keyboard.press('Escape');
+  await page.setViewportSize({width:390,height:844});
+  for(const view of ['analytics','audit']){
+   await page.locator('[data-nav-toggle]').click();await page.locator('.side-nav [data-v="'+view+'"]').click();
+   await page.locator(view==='analytics'?'#analytics-table tbody':'#audit-enabled').waitFor();
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile overflow: '+view);await screenshot(view+'-mobile');
+  }
+  await page.setViewportSize({width:1440,height:1000});await page.locator('.side-nav [data-v="att"]').click();await page.waitForSelector('#gt');
   await page.locator('[data-act="aexp"] svg').dispatchEvent('click');await page.waitForSelector('[role="dialog"]');await page.keyboard.press('Escape');
   await page.evaluate(()=>login());await page.waitForSelector('#le');await screenshot('login-dark');
   assert.equal(await page.locator('select[data-theme-preference]').isVisible(),true);
-  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, both themes, saved preference, dialogs, mobile navigation, filters, SVG actions, and four viewport sizes.');
+  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and four viewport sizes.');
  }finally{await browser?.close();server.kill()}
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

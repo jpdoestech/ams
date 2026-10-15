@@ -3,7 +3,7 @@
 ## 1. Supabase database and authentication
 
 1. Create a Supabase project. In SQL Editor, run **the complete `supabase/schema.sql`** as the database owner. It includes all ordered migrations and is rerunnable. Do not run a partial selection of a function body.
-2. For an existing AMS database, take a database backup first. Run the ordered files in `supabase/migrations/` (001 through 005). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
+2. For an existing AMS database, take a database backup first. Run missing ordered files in `supabase/migrations/` (001 through 006). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. If already updated through 005, apply **006_audit_controls.sql** before deploying the new audit controls. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
 3. Enable Email authentication. Set Authentication → URL Configuration → Site URL to the production Vercel URL. Add any preview URLs used for sign-in/confirmation to the allowed redirect list.
 4. Create your account using **Request access**, or create it in the Supabase Auth dashboard. All accounts start inactive with role `viewer`.
 5. In SQL Editor, explicitly approve your own trusted account, substituting its exact email:
@@ -64,7 +64,7 @@ The private key supports actual newlines or literal `\n`. Do not include extra s
 
 Exports now preserve actual punches, breaks, status, and overrides. Legacy status-only CSVs still import but do not become verified duty. Imports fetch conflicts across the complete file range, stage validation issues, reject duplicate employee/date rows, and preserve reviewed and finalized entries.
 
-Worked amounts are immutable snapshots until an authorized edit to an unlocked day; such edits recompute attendance/pay together and retain old/new values in the audit log. Finalized cut-offs have no client-side unlock. Corrections to closed payroll need an explicitly documented adjustment handled by the database owner; an adjustment-entry workflow is a remaining extension, not an unlock-and-recalculate operation.
+Worked amounts are immutable snapshots until an authorized edit to an unlocked day; such edits recompute attendance/pay together and retain old/new values in the audit log when Attendance capture is enabled. Audit capture scopes are configured by superadmins on the separate Audit logs screen; settings changes always remain logged. Finalized cut-offs have no client-side unlock. Corrections to closed payroll need an explicitly documented adjustment handled by the database owner; an adjustment-entry workflow is a remaining extension, not an unlock-and-recalculate operation.
 
 Existing v4 locks remain effective, but have no newly generated holiday-entitlement snapshots. Reconcile those legacy periods before relying on their holiday totals. No migration fabricates missing punches, wages, declarations, or approvals. Export and database backup before any migration; rollback is restoration from that backup rather than a destructive down migration.
 
@@ -72,7 +72,7 @@ Existing v4 locks remain effective, but have no newly generated holiday-entitlem
 
 - **Demo mode on Vercel:** check `SUPABASE_URL` and `SUPABASE_ANON_KEY` and redeploy.
 - **Awaiting access:** approve the profile's Active flag and role with a Superadmin.
-- **Missing table/RPC:** ensure all five migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
+- **Missing table/RPC:** ensure all six migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
 - **No pay:** check effective wage date, actual punches, and holiday coverage. Blank cells do not earn worked pay.
 - **Wage date already exists:** versions cannot be replaced; insert a new effective date. Existing worked-day snapshots are unchanged.
 - **Sync 403:** the caller must be active Staff/Superadmin, and the destination must be shared with the service account.

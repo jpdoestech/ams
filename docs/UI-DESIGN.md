@@ -26,6 +26,8 @@ Desktop uses a collapsible sidebar with current-page indication and a compact wo
 
 The attendance information icon beside the employee count reveals entry guidance on hover, keyboard focus, or click. Clicking pins the information open; a second click, Escape, or an outside click dismisses it. The guidance does not occupy a permanent row below the table.
 
+Standards tables use the same 34px row target and compact action controls as Employees. Supervisor references display codes; the supervisor management table separates Code and Name. Summary totals use a compact wrapping strip instead of large cards. Duty overrides use a keyboard-accessible two-column list; saved attendance comments use viewport-bounded popovers. Analytics provides custom-date employee, workforce, and daily data tables; Audit logs has its own superadmin-only navigation entry and scope controls.
+
 Employee rows open the information form on click, Enter, or Space. A compact three-dot button opens Schedule, Edit, and Delete actions, with menu keyboard navigation and focus restoration. The action column stays visible while scrolling horizontally. Viewers receive read-only information and schedule access. Schedule is also available in the employee form header; returning from the schedule restores unsaved employee fields.
 
 Duty and employee editors use labelled dialogs with Escape and focus restoration. Confirmation dialogs retain their own focus handling. Save duty continues to save immediately; Clear entry continues to require confirmation. Existing RBAC, reviewed-entry protection, cut-off locks, and pay calculations are unchanged.
