@@ -40,6 +40,8 @@ Content fills available screen width up to 2200px for data tables, 1600px for Da
 
 Reduced-motion preferences disable nonessential transitions. No remote fonts, icon libraries, or theme frameworks are required at runtime.
 
+Workspace datasets load with up to six parallel requests. A complete load is published atomically; a failed or superseded request cannot partially replace the visible data. Navigation reuses a snapshot for up to 15 seconds for the same user, role, and cut-off. Selecting the current page again forces a reload, and existing save workflows continue to reload immediately. Sign-out invalidates pending loads. The header shows loading feedback while navigation waits. Assignment history is indexed by employee and effective date instead of repeatedly sorting every version for each table cell.
+
 ## Checks
 
 `npm test` covers the attendance/database workflows and preference persistence, system-theme changes, cross-tab updates, invalid values, and restricted storage.

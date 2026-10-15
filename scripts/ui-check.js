@@ -20,6 +20,10 @@ async function run(){
   assert.equal(await page.locator('[data-nav-toggle]').isVisible(),true);
   await page.selectOption('select[data-theme-preference]','dark');await page.reload();await page.waitForSelector('.metric-grid');
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');await screenshot('dashboard-dark');
+  await page.evaluate(()=>{globalThis.browserOriginalList=API.list.bind(API);globalThis.navigationReads=0;API.list=async(...args)=>{navigationReads++;return browserOriginalList(...args)}});
+  await page.locator('.side-nav [data-v="emp"]').click();await page.waitForSelector('#emt');assert.equal(await page.evaluate(()=>navigationReads),0,'Fresh navigation reuses the workspace snapshot');
+  await page.locator('.breadcrumb [data-v="emp"]').click();await page.waitForFunction(()=>navigationReads===19&&document.querySelector('.workspace')?.getAttribute('aria-busy')!=='true');
+  await page.evaluate(()=>{API.list=browserOriginalList});
   for(const view of ['emp','att','sum','std','usr','analytics','audit']){
     await page.locator('.side-nav [data-v="'+view+'"]').click();await page.waitForSelector('#mn[data-view="'+view+'"]');
     await page.locator(view==='analytics'?'#analytics-overview .analytics-chart':'#mn .wrap').first().waitFor();

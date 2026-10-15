@@ -3,7 +3,18 @@ let ASSIGNMENTS=[];
 const assignmentKeys=['department','position','site','location','time_in','time_out','rest_day'];
 const assignmentFields=e=>Object.fromEntries(assignmentKeys.map(k=>[k,e[k]??null]));
 const actorId=()=>P?.id||'demo';
-function assignmentVersion(id,date){return ASSIGNMENTS.filter(v=>v.emp_id===id&&v.effective_from<=date).sort((a,b)=>b.effective_from.localeCompare(a.effective_from)||Number(b.version_no)-Number(a.version_no))[0]}
+let assignmentIndexSource=null,assignmentIndexLength=-1,assignmentIndex=new Map();
+function assignmentVersion(id,date){
+ // Versions are append-only. Rebuild once per new snapshot, not once per cell.
+ if(assignmentIndexSource!==ASSIGNMENTS||assignmentIndexLength!==ASSIGNMENTS.length){
+  assignmentIndexSource=ASSIGNMENTS;assignmentIndexLength=ASSIGNMENTS.length;assignmentIndex=new Map();
+  for(const v of ASSIGNMENTS){if(!assignmentIndex.has(v.emp_id))assignmentIndex.set(v.emp_id,[]);assignmentIndex.get(v.emp_id).push(v)}
+  for(const list of assignmentIndex.values())list.sort((a,b)=>a.effective_from.localeCompare(b.effective_from)||Number(a.version_no)-Number(b.version_no));
+ }
+ const list=assignmentIndex.get(id)||[];let low=0,high=list.length;
+ while(low<high){const mid=(low+high)>>>1;if(list[mid].effective_from<=date)low=mid+1;else high=mid}
+ return list[low-1];
+}
 function employeeAt(e,date){const version=assignmentVersion(e.id,date);return{...e,...(version?.snapshot.employee||{}),_workDate:date}}
 function assignmentBlocks(id,date=manilaToday()){return assignmentVersion(id,date)?.snapshot.blocks??DB.filter(b=>b.emp_id===id)}
 function demoCaptureAssignment(table,old,row,state=S){

@@ -21,6 +21,7 @@ assets/
   ui.js                         SVG icons, controls and navigation accessibility
   ui-workflows.js               Fixed modal chrome, filter indicators, dependent lookups
   operations.js                 Attendance review, dated assignments, adjustment ledger
+  workspace-data.js             Parallel atomic loading and brief navigation reuse
   supabase-client.js            Browser auth persistence and automatic token refresh
   styles.css                    Workspace design tokens and responsive layouts
 api/
