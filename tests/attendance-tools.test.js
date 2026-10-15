@@ -15,7 +15,7 @@ test('DUTY is selected by default; PRESENT is absent from entry controls',()=>{
  assert.equal(w.eval('tool'),'DUTY');assert.equal(w.document.querySelector('[data-t="DUTY"]').getAttribute('aria-pressed'),'true');
  assert.equal(w.document.querySelector('[data-t="PRESENT"]'),null);assert.equal(w.document.querySelector('[data-t="CLEAR"]').textContent,'Clear entry');
  const cell=w.document.querySelector('td.c');cell.dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));
- const items=[...w.document.querySelectorAll('#menu div')].map(el=>el.textContent);assert.ok(items.includes('Clear entry'));assert.ok(!items.includes('PRESENT'));
+ const items=[...w.document.querySelectorAll('#menu [role="menuitem"]')].map(el=>el.textContent);assert.ok(items.includes('Clear entry'));assert.ok(!items.includes('PRESENT'));
 });
 test('default grid click opens duty editor and preserves existing recorded work',async()=>{
  await seed('2026-10-01');

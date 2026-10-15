@@ -1,5 +1,11 @@
 # User guide
 
+## Workspace and appearance
+
+Use the sidebar to navigate between Dashboard, Employees, Attendance, Summary, and your role's management screens. On phones, open the navigation drawer using the menu button. Attendance search/filter controls expand from **Search & filters** on smaller screens.
+
+Choose **System**, **Light**, or **Dark** from the appearance selector in the top-right corner. Your choice is saved in this browser and restored on reload. System follows your device's current appearance. The same control is available on the sign-in screen.
+
 ## Roles
 
 | Role | Access |

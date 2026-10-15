@@ -11,7 +11,9 @@ assets/
   data-tools.js                 Atomic saves, staged import, DTR/CSV exports
   confirm-dialog.js             Accessible in-app confirmation pop-ups
   duty-engine.js                Shared, testable browser calculation core
-  styles.css                    Existing responsive styling
+  theme.js                      Saved light/dark/system appearance before paint
+  ui.js                         SVG icons, controls and navigation accessibility
+  styles.css                    Workspace design tokens and responsive layouts
 api/
   config.js                     Public runtime settings from Vercel env
   sync.js                       Authenticated Supabase → Google Sheets sync
@@ -36,7 +38,10 @@ Requires Node.js 24.x (development/tests only). The frontend is static; Vercel h
 npm ci
 npm test
 npm run build
+npm run dev
 ```
+
+Choose **System**, **Light**, or **Dark** in the top-right appearance selector. The selection is saved in this browser. See [UI design and browser checks](docs/UI-DESIGN.md); `npm run test:ui` runs the real-browser checks with an installed Chrome.
 
 Open `index.html` for browser-only demo mode, or serve the repository with a local static server. A static-only server has no `/api/config` route: it uses the empty public settings and demo data. For the complete stack, use Vercel development or a Vercel preview deployment with the environment variables in `.env.example`.
 
