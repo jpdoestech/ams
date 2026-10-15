@@ -14,7 +14,7 @@ The preference is stored under `ams_theme` in this browser. It survives reloads 
 
 ## Visual system
 
-- ERP palette: Palladian `#EEE9DF`, Oatmeal `#C9C1B1`, Blue Fantastic `#2C3B4D`, Burning Flame `#FFB162`, Truffle Trouble `#A35139`, and Abyssal Anchorfish Blue `#1B2632`. Semantic variants maintain readable attendance states and controls in both themes.
+- Professional ERP palette: cool white and gray surfaces with `#212529` text and blue primary actions in light mode; charcoal surfaces with `#E1E1E1` text and lighter blue accents in dark mode. The sidebar follows the selected theme. Semantic status colors distinguish leave, absence, rest days, and warnings.
 - Shared SVG icons in `assets/ui.js`; icons beside visible labels are decorative and hidden from assistive technology. Icon-only controls have accessible names.
 - Primary buttons are filled, secondary actions are bordered, and destructive actions use semantic red. Disabled and saving states are distinct.
 - Dashboard totals come from the loaded cut-off. No example trends or fabricated activity are displayed.
@@ -25,6 +25,8 @@ The preference is stored under `ams_theme` in this browser. It survives reloads 
 Desktop uses a collapsible sidebar with current-page indication and a compact workspace header. Its expanded/collapsed preference is saved under `ams_sidebar` and applied before paint by `assets/layout.js`. Clickable breadcrumbs replace large page headings: Workspace opens Dashboard and the current-page link refreshes that screen. Employee rows target 34px with compact action buttons. Phone layouts use an accessible drawer with a close control, Escape handling, focus trapping, and an inert background. Search/filter controls collapse on small screens to give the attendance matrix more space.
 
 The attendance information icon beside the employee count reveals entry guidance on hover, keyboard focus, or click. Clicking pins the information open; a second click, Escape, or an outside click dismisses it. The guidance does not occupy a permanent row below the table.
+
+Employee rows open the information form on click, Enter, or Space. A compact three-dot button opens Schedule, Edit, and Delete actions, with menu keyboard navigation and focus restoration. The action column stays visible while scrolling horizontally. Viewers receive read-only information and schedule access. Schedule is also available in the employee form header; returning from the schedule restores unsaved employee fields.
 
 Duty and employee editors use labelled dialogs with Escape and focus restoration. Confirmation dialogs retain their own focus handling. Save duty continues to save immediately; Clear entry continues to require confirmation. Existing RBAC, reviewed-entry protection, cut-off locks, and pay calculations are unchanged.
 

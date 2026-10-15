@@ -38,7 +38,8 @@
     arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
     store:'<path d="m3 3-1 7a4 4 0 0 0 4 2 4 4 0 0 0 6 0 4 4 0 0 0 6 0 4 4 0 0 0 4-2l-1-7H3Zm1 10v8h16v-8M9 21v-6h6v6"/>',
     search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',
-    info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>'
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
+    more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'
   };
   const icon=(name)=>`<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[name]||paths.grid}</svg>`;
   const actionIcons={eadd:'plus',eedit:'edit',edel:'trash',esave:'save',eimp:'upload',eexp:'download',esch:'calendar',col:'columns',fld:'settings',creset:'reset',csave:'check',fadd:'plus',frn:'edit',frsave:'save',ftog:'settings',lkadd:'plus',lkdel:'trash',stnew:'plus',stedit:'edit',stsave:'save',stdel:'trash',stimp:'upload',stexp:'download',supnew:'plus',supedit:'edit',supsave:'save',supdel:'trash',sadd:'plus',sdel:'trash',ssave:'save',lock:'lock',rulenew:'plus',rulesave:'save',dsave:'save',aimp:'upload',aexp:'download',sexp:'download',xsum:'download',xdet:'download',xdtr:'download',sgo:'check',cm:'close',cl:'close',in:'login',out:'logout',up:'shield',cadd:'message',fclr:'reset',hol:'calendar',hadd:'plus',hdel:'trash',lsave:'save',sync:'refresh'};

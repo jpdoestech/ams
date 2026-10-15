@@ -24,6 +24,8 @@ Set standard values, regions/cities, stores/vendors, supervisors, and holidays f
 
 Add employees with their hire date, assignment, city, working hours, and actual rest day. A replacement can copy the replaced employee's deployment, supervisors, and duty/break schedule. Set a separation date when an employee leaves; historical reports retain employees with period records or finalized snapshots. Employees with history cannot be deleted.
 
+Click an employee row to open their information, or focus the row and press Enter or Space. Use the three-dot action button for **Schedule**, **Edit**, or **Delete**. Viewers can read employee information and schedules. The **Schedule** button at the top of the employee form opens the duty schedule; **Back to employee** restores any unsaved form changes. Deleting an employee still requires confirmation.
+
 **Pay profile:** enter daily rate, normal paid hours, holiday coverage, and the rate's effective-from date. Each change creates an immutable wage version. Use the actual historical effective date when initially entering an existing employee; the current-date default does not backfill historical wages. Saved worked days retain their original wage/rule snapshots until explicitly edited in an unlocked period.
 
 The Schedule editor accepts multiple duty blocks and break blocks. Late/undertime now handles the number of duty blocks actually present. Schedule edits affect future entries/previews; saved duty includes the schedule/location snapshot used when encoded. Full effective-dated schedule and assignment history is not yet modeled.

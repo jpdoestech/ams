@@ -9,7 +9,7 @@
     document.documentElement.dataset.theme=theme;
     document.documentElement.dataset.themePreference=preference;
     document.documentElement.style.colorScheme=theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#1b2632':'#eee9df');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#1b1c1e':'#f3f5f8');
     document.querySelectorAll('select[data-theme-preference]').forEach(el=>{el.value=preference});
     root.dispatchEvent(new CustomEvent('ams:theme',{detail:{preference,theme}}));
   }
