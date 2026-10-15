@@ -9,6 +9,7 @@ index.html                      Frontend entry point
 assets/
   app.js                        Existing screens, state, Supabase adapter
   data-tools.js                 Atomic saves, staged import, DTR/CSV exports
+  attendance-xlsx.js            Formatted attendance matrix and transaction XLSX export
   analytics.js                  Date-bounded attendance and workforce measures
   analytics-charts.js           Responsive SVG overview charts and keyboard exploration
   workspace-features.js         Analytics, audit controls, duty list, comment popovers

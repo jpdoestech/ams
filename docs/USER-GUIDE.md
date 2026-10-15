@@ -94,6 +94,15 @@ Recorded attendance divides verified worked scheduled days by scheduled days. Re
 
 The dashboard shows cut-off attendance totals, assignment headcount, and recent daily attendance. The employee directory is available in Employees.
 
+## Excel attendance export
+
+In Attendance, click **Export**, select the period, and click **Excel (.xlsx)**. The current employee filters apply by default; clear the checkbox to include all eligible employees in that period. The workbook includes:
+
+- **Attendance**: No., Cut-Off, Employee Name, and one column per date, matching the employee-by-date layout. The header and first three columns stay frozen. Compact rows, gray headers, borders, date formatting, status dropdowns, and landscape print settings are included.
+- **Transactions**: actual punches, breaks, saved status, duty/override codes and reasons, source, and verification/review flags. No wages or pay amounts are included.
+
+Blank entries remain blank. Scheduled rest days and dates outside employment may display DAY-OFF/N/A. Paid/unpaid leave are explicit, and recorded work includes duty code and hours. Excel edits stay in the downloaded file and do not update AMS. Existing CSV exports remain available for supported imports. Matrix exports support up to 366 days and 500,000 employee/date cells; choose a smaller range or filter if needed.
+
 ## Google Sheets
 
 An active Staff/Superadmin can sync the selected attendance cut-off when configured. The server reads authorized Supabase data and replaces the four managed tabs in the configured Sheet stored in Drive. The app reports success only after Google confirms the write. This is a one-way reporting copy; edits in Sheets never overwrite Supabase.

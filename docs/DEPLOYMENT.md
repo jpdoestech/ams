@@ -1,5 +1,7 @@
 # Deployment: Supabase + Vercel + Google Sheets
 
+Run `npm install` before the frontend build. The build copies the pinned ExcelJS browser bundle and license into public assets for XLSX downloads; the library loads only when Excel export is requested, from the same origin. No external spreadsheet service or new Supabase migration is required for this export.
+
 ## 1. Supabase database and authentication
 
 1. Create a Supabase project. In SQL Editor, run **the complete `supabase/schema.sql`** as the database owner. It includes all ordered migrations and is rerunnable. Do not run a partial selection of a function body.

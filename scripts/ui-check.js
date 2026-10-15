@@ -1,6 +1,7 @@
 /* Real-browser checks and screenshots. Requires Google Chrome or BROWSER_EXECUTABLE. */
 const {chromium}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {spawn}=require('node:child_process');
+const ExcelJS=require('exceljs');
 async function run(){
  const port=process.env.UI_TEST_PORT||'4175',server=spawn(process.execPath,['scripts/dev.js'],{env:{...process.env,PORT:port},stdio:['ignore','pipe','pipe'],windowsHide:true});
  let browser;
@@ -11,6 +12,7 @@ async function run(){
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/api/config',r=>r.fulfill({contentType:'application/javascript',body:'window.AMS_CONFIG={};'}));
   await page.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:''}));
+  await page.route('http://127.0.0.1:'+port+'/',async route=>{const response=await route.fetch(),policy=JSON.parse(fs.readFileSync('vercel.json','utf8')).headers[0].headers.find(h=>h.key==='Content-Security-Policy').value;await route.fulfill({response,headers:{...response.headers(),'content-security-policy':policy}})});
   await page.goto('http://127.0.0.1:'+port);await page.waitForSelector('.metric-grid');
   fs.mkdirSync('test-results/ui',{recursive:true});
   const screenshot=async name=>page.screenshot({path:'test-results/ui/'+name+'.png',animations:'disabled'});
@@ -140,7 +142,10 @@ async function run(){
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile overflow: '+view);await screenshot(view+'-mobile');
   }
   await page.setViewportSize({width:1440,height:1000});await page.locator('.side-nav [data-v="att"]').click();await page.waitForSelector('#gt');
-  await page.locator('[data-act="aexp"] svg').dispatchEvent('click');await page.waitForSelector('[role="dialog"]');await page.keyboard.press('Escape');
+  await page.locator('[data-act="aexp"] svg').dispatchEvent('click');await page.waitForSelector('[role="dialog"]');
+  const excelDownload=page.waitForEvent('download');await page.locator('[data-act="xlsx"]').click();const downloaded=await excelDownload;assert.match(downloaded.suggestedFilename(),/attendance_.*\.xlsx$/);await downloaded.saveAs('test-results/ui/attendance-export.xlsx');
+  const exportedBook=new ExcelJS.Workbook();await exportedBook.xlsx.readFile('test-results/ui/attendance-export.xlsx');assert.equal(exportedBook.getWorksheet('Attendance').getCell('C1').value,'Employee Name');assert.equal(exportedBook.getWorksheet('Attendance').views[0].xSplit,3);assert.ok(exportedBook.getWorksheet('Transactions'));
+  await page.waitForFunction(()=>!document.querySelector('#ov').classList.contains('on'));
   // Every workspace screen must fit the viewport; wide tables scroll within their containers.
   for(const [width,height] of [[320,740],[375,812],[768,1024],[844,390],[1024,768],[1366,768],[1920,1080]]){
    await page.setViewportSize({width,height});
