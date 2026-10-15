@@ -1,4 +1,5 @@
 const fs=require('node:fs');
+require('./address-data');
 fs.mkdirSync('public/assets',{recursive:true});
 fs.writeFileSync('public/index.html',fs.readFileSync('index.html','utf8').replace('data-file-library="../node_modules/exceljs/dist/exceljs.min.js"','data-file-library="exceljs.min.js"'));
 for(const file of fs.readdirSync('assets'))fs.copyFileSync('assets/'+file,'public/assets/'+file);

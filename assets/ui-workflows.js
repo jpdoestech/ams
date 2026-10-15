@@ -53,3 +53,5 @@ async function saveQuickLookup(){
 }
 document.addEventListener('change',e=>{if(e.target.id==='f_department')syncEmployeePosition()});
 document.addEventListener('click',e=>{const button=e.target.closest?.('[data-quick-add],[data-quick-save],[data-quick-cancel]');if(!button)return;if(button.hasAttribute('data-quick-add'))quickLookup(button.dataset.quickAdd);else if(button.hasAttribute('data-quick-save'))guard(saveQuickLookup);else $('employee-lookup-editor').hidden=true});
+
+document.addEventListener('change',e=>{if(e.target.id==='f_location_region')$('f_location').innerHTML=cityOpts(e.target.value,'')});
