@@ -54,14 +54,16 @@
   }
   return workbook;
  }
+ // Resolve beside this script, and version the lazy asset to avoid cached failures.
+ const libraryURL=typeof document==='undefined'?null:new URL('exceljs.min.js?v=4.4.0',document.currentScript?.src||new URL('assets/attendance-xlsx.js',document.baseURI)).href;
  let libraryPromise=null;
  function library(){
-  if(root.ExcelJS)return Promise.resolve(root.ExcelJS);if(libraryPromise)return libraryPromise;
+  if(typeof root.ExcelJS?.Workbook==='function')return Promise.resolve(root.ExcelJS);if(libraryPromise)return libraryPromise;
   libraryPromise=new Promise((resolve,reject)=>{
-   const script=document.createElement('script'),timer=setTimeout(()=>fail(),20000);
-   function fail(){clearTimeout(timer);script.remove();libraryPromise=null;reject(Error('Excel export could not load. Please retry.'))}
-   script.src=new URL('assets/exceljs.min.js',document.baseURI).href;script.onload=()=>{clearTimeout(timer);if(root.ExcelJS)resolve(root.ExcelJS);else fail()};script.onerror=fail;document.head.append(script);
-  });return libraryPromise;
+   const script=document.createElement('script'),timer=setTimeout(()=>fail('Excel export timed out. Check the connection and retry.'),20000);
+   function fail(message){clearTimeout(timer);script.remove();reject(Error(message))}
+   script.src=libraryURL;script.onload=()=>{clearTimeout(timer);if(typeof root.ExcelJS?.Workbook==='function')resolve(root.ExcelJS);else fail('Excel export library is unavailable. Refresh this page and retry.')};script.onerror=()=>fail('Excel export could not load. Refresh this page and retry.');document.head.append(script);
+  }).catch(error=>{libraryPromise=null;throw error});return libraryPromise;
  }
  async function download(options){
   const ExcelJS=await library(),workbook=build(ExcelJS,options),buffer=await workbook.xlsx.writeBuffer(),blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`attendance_${options.start}_${options.end}.xlsx`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);

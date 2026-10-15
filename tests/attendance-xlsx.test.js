@@ -1,6 +1,20 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const ExcelJS=require('exceljs'),{build,dates}=require('../assets/attendance-xlsx');
 const employees=[{id:'a',last_name:'DELA CRUZ',first_name:'JUAN',middle_name:'TAMAD'},{id:'b',last_name:'=SUM(1,2)',first_name:'Safe text'}];
+test('a failed library load can be retried with a versioned URL and produces a download',async()=>{
+ const {JSDOM}=require('jsdom'),vm=require('node:vm'),fs=require('node:fs');
+ const dom=new JSDOM('<head></head>',{url:'https://ams.test/app/',runScripts:'outside-only'}),w=dom.window;
+ try{
+  new vm.Script(fs.readFileSync('assets/attendance-xlsx.js','utf8')).runInContext(dom.getInternalVMContext());
+  const urls=[];let attempts=0,downloads=0;
+  w.document.head.append=script=>{urls.push(script.src);queueMicrotask(()=>{if(++attempts===1)script.onerror();else{w.ExcelJS=ExcelJS;script.onload()}})};
+  w.URL.createObjectURL=()=> 'blob:export-test';w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=()=>{downloads++};
+  const options={employees:[],rows:[],start:'2026-10-01',end:'2026-10-01'};
+  await assert.rejects(w.AMSAttendanceXLSX.download(options),/Refresh this page/);
+  await w.AMSAttendanceXLSX.download(options);
+  assert.equal(downloads,1);assert.equal(attempts,2);assert.ok(urls.every(url=>url==='https://ams.test/app/assets/exceljs.min.js?v=4.4.0'));
+ }finally{w.close()}
+});
 async function reopen(options){const book=build(ExcelJS,options),bytes=await book.xlsx.writeBuffer(),restored=new ExcelJS.Workbook();await restored.xlsx.load(bytes);return restored}
 test('XLSX matrix preserves reference columns, real dates, compact rows, panes and status dropdowns after reopen',async()=>{
  const book=await reopen({employees,start:'2026-09-01',end:'2026-09-15',rows:[{emp_id:'a',date:'2026-09-03',type:'ABSENT'}],transactions:[['emp_no','time_in'],['001','08:00']],isNA:(e,d)=>e.id==='b'&&d<'2026-09-03',isRD:(_e,d)=>d==='2026-09-06'}),s=book.getWorksheet('Attendance');
