@@ -32,10 +32,13 @@
     moon:'<path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/>',
     monitor:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>',
     menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+    panelClose:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18m7-13-4 4 4 4"/>',
+    panelOpen:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18m4-13 4 4-4 4"/>',
     left:'<path d="m15 6-6 6 6 6"/>',right:'<path d="m9 6 6 6-6 6"/>',up:'<path d="m6 15 6-6 6 6"/>',down:'<path d="m6 9 6 6 6-6"/>',
     arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
     store:'<path d="m3 3-1 7a4 4 0 0 0 4 2 4 4 0 0 0 6 0 4 4 0 0 0 6 0 4 4 0 0 0 4-2l-1-7H3Zm1 10v8h16v-8M9 21v-6h6v6"/>',
-    search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>'
+    search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>'
   };
   const icon=(name)=>`<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[name]||paths.grid}</svg>`;
   const actionIcons={eadd:'plus',eedit:'edit',edel:'trash',esave:'save',eimp:'upload',eexp:'download',esch:'calendar',col:'columns',fld:'settings',creset:'reset',csave:'check',fadd:'plus',frn:'edit',frsave:'save',ftog:'settings',lkadd:'plus',lkdel:'trash',stnew:'plus',stedit:'edit',stsave:'save',stdel:'trash',stimp:'upload',stexp:'download',supnew:'plus',supedit:'edit',supsave:'save',supdel:'trash',sadd:'plus',sdel:'trash',ssave:'save',lock:'lock',rulenew:'plus',rulesave:'save',dsave:'save',aimp:'upload',aexp:'download',sexp:'download',xsum:'download',xdet:'download',xdtr:'download',sgo:'check',cm:'close',cl:'close',in:'login',out:'logout',up:'shield',cadd:'message',fclr:'reset',hol:'calendar',hadd:'plus',hdel:'trash',lsave:'save',sync:'refresh'};
@@ -45,7 +48,12 @@
     const sidebar=document.querySelector('.sidebar'),workspace=document.querySelector('.workspace'),toggle=document.querySelector('[data-nav-toggle]');
     if(sidebar)sidebar.inert=mobile&&!open;
     if(workspace)workspace.inert=open;
-    toggle?.setAttribute('aria-expanded',String(open));
+    if(toggle){
+      const collapsed=root.AMSLayout?.isCollapsed()||false,label=mobile?(open?'Close navigation':'Open navigation'):(collapsed?'Expand sidebar':'Collapse sidebar');
+      toggle.setAttribute('aria-expanded',String(mobile?open:!collapsed));toggle.setAttribute('aria-label',label);toggle.title=label;
+      const name=mobile?'menu':collapsed?'panelOpen':'panelClose';
+      if(toggle.dataset.navIcon!==name){toggle.innerHTML=icon(name);toggle.dataset.navIcon=name}
+    }
   }
   function setNavigation(open,focus=true){
     const wasOpen=document.documentElement.classList.contains('nav-open');
@@ -76,6 +84,17 @@
     Object.entries(fields).forEach(([id,label])=>{const el=container.querySelector('#'+id);if(el&&!el.labels?.length)el.setAttribute('aria-label',label)});
     container.querySelectorAll('.wrap').forEach(el=>{if(!el.hasAttribute('tabindex'))el.tabIndex=0;if(!el.hasAttribute('aria-label'))el.setAttribute('aria-label','Scrollable data table')});
     container.querySelectorAll('[data-ps]').forEach(el=>el.setAttribute('aria-label','Rows per page'));
+    container.querySelectorAll('[data-help-wrap]').forEach(wrap=>{
+      if(wrap.dataset.ready)return;wrap.dataset.ready='true';
+      const button=wrap.querySelector('[data-help-toggle]'),panel=wrap.querySelector('[data-help-panel]');
+      const show=()=>{panel.hidden=false;button.setAttribute('aria-expanded','true')};
+      const hide=()=>{panel.hidden=true;button.setAttribute('aria-expanded','false')};
+      wrap.addEventListener('pointerenter',show);
+      wrap.addEventListener('pointerleave',()=>{if(button.dataset.pinned!=='true'&&!wrap.contains(document.activeElement))hide()});
+      button.addEventListener('focus',show);
+      button.addEventListener('blur',()=>{if(button.dataset.pinned!=='true')hide()});
+      button.addEventListener('click',()=>{const pinned=button.dataset.pinned!=='true';button.dataset.pinned=String(pinned);if(pinned)show();else hide()});
+    });
     syncNavigation();
   }
   document.addEventListener('DOMContentLoaded',()=>{
@@ -89,6 +108,10 @@
     observer.observe(document.body,{childList:true,subtree:true});
   });
   root.addEventListener('ams:theme',()=>{document.querySelectorAll('.theme-control>.icon').forEach(el=>{el.outerHTML=icon({light:'sun',dark:'moon',system:'monitor'}[root.AMSTheme.get()])})});
+  root.addEventListener('ams:layout',syncNavigation);
+  function dismissHelp(){document.querySelectorAll('[data-help-wrap]').forEach(wrap=>{wrap.querySelector('[data-help-panel]').hidden=true;const button=wrap.querySelector('[data-help-toggle]');button.dataset.pinned='false';button.setAttribute('aria-expanded','false')})}
+  document.addEventListener('click',event=>{if(!event.target.closest('[data-help-wrap]'))dismissHelp()});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')dismissHelp()});
   document.addEventListener('keydown',event=>{
     if(event.key!=='Tab'||!document.documentElement.classList.contains('nav-open'))return;
     const items=[...document.querySelectorAll('.sidebar a,.sidebar button,.sidebar select')].filter(el=>!el.disabled),first=items[0],last=items.at(-1);

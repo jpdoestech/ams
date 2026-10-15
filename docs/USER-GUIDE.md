@@ -4,6 +4,8 @@
 
 Use the sidebar to navigate between Dashboard, Employees, Attendance, Summary, and your role's management screens. On phones, open the navigation drawer using the menu button. Attendance search/filter controls expand from **Search & filters** on smaller screens.
 
+On laptops, the sidebar button beside **Workspace** collapses navigation to icons and remembers your choice. Click **Workspace** in the breadcrumb to open Dashboard, or the current page name to refresh that screen. Hover, focus, or click the information icon beside the attendance employee count to read entry guidance. Press Escape or click outside to close it.
+
 Choose **System**, **Light**, or **Dark** from the appearance selector in the top-right corner. Your choice is saved in this browser and restored on reload. System follows your device's current appearance. The same control is available on the sign-in screen.
 
 ## Roles

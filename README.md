@@ -12,6 +12,7 @@ assets/
   confirm-dialog.js             Accessible in-app confirmation pop-ups
   duty-engine.js                Shared, testable browser calculation core
   theme.js                      Saved light/dark/system appearance before paint
+  layout.js                     Saved desktop sidebar preference before paint
   ui.js                         SVG icons, controls and navigation accessibility
   styles.css                    Workspace design tokens and responsive layouts
 api/
