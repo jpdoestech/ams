@@ -33,7 +33,7 @@ async function analyticsLoad(){
  const request=++analyticsRequest,site=$('analytics-site').value,q=$('analytics-search').value.trim().toLowerCase();$('analytics-status').textContent='Loading analytics…';
  const records=await API.list('attendance',[addD(start,-1),end]);if(V!=='analytics'||request!==analyticsRequest)return;
  const employees=E.filter(e=>(!site||e.site===site)&&(!q||`${e.emp_no} ${e.last_name} ${e.first_name}`.toLowerCase().includes(q)));
- analyticsResult=AMSAnalytics.build({employees,attendance:records,start,end,isScheduled:(e,d)=>!isRD(e,d)&&['OD','SWD'].includes(dayCode(e,d))});analyticsRange=[start,end];analyticsRender();$('analytics-status').textContent=`${start} — ${end} · ${analyticsResult.rows.length} employees`;
+ analyticsResult=AMSAnalytics.build({employees,attendance:records,start,end,isScheduled:(e,d)=>!isRD(e,d)&&['OD','SWD'].includes(dayCode(e,d))});analyticsRange=[start,end];$('analytics-search').dataset.appliedFilter=q;$('analytics-site').dataset.appliedFilter=site;analyticsRender();AMSWorkflows.syncFilters();$('analytics-status').textContent=`${start} — ${end} · ${analyticsResult.rows.length} employees`;
 }
 function analyticsTableData(){const r=analyticsResult;if(!r)return[];
  if(analyticsMode==='workforce')return[['Assignment','Department','Headcount at start','Headcount at end','Hires','Separations','Recorded hours'],...r.groups.map(g=>[g.site,g.department,g.start,g.end,g.hires,g.separations,g.hours.toFixed(2)])];

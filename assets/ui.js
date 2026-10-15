@@ -96,7 +96,7 @@
       button.addEventListener('blur',()=>{if(button.dataset.pinned!=='true')hide()});
       button.addEventListener('click',()=>{const pinned=button.dataset.pinned!=='true';button.dataset.pinned=String(pinned);if(pinned)show();else hide()});
     });
-    syncNavigation();
+    root.AMSWorkflows?.syncFilters();syncNavigation();
   }
   document.addEventListener('DOMContentLoaded',()=>{
     enhance();

@@ -24,6 +24,10 @@ Set standard values, regions/cities, stores/vendors, supervisors, and holidays f
 
 Add employees with their hire date, assignment, city, working hours, and actual rest day. A replacement can copy the replaced employee's deployment, supervisors, and duty/break schedule. Set a separation date when an employee leaves; historical reports retain employees with period records or finalized snapshots. Employees with history cannot be deleted.
 
+Choose **Department** before **Position**. Position choices show only those linked to that department. Changing departments clears an incompatible position. Staff and superadmins can use the **+** icon beside either field to add a department or add/link a position without losing the employee draft. An existing position can belong to multiple departments. In Standards → Standard values → Position, select a department and add a new or existing position to link it; the table shows the linked departments. Employee CSV assignments must use configured department/position pairs.
+
+Editor headers and footers remain visible while the body scrolls. Schedule editors keep the same viewport-based size whether they have few or many rows; wide tables scroll within their own containers. Confirmation dialogs keep their actions visible for long messages.
+
 Click an employee row to open their information, or focus the row and press Enter or Space. Use the three-dot action button for **Schedule**, **Edit**, or **Delete**. Viewers can read employee information and schedules. The **Schedule** button at the top of the employee form opens the duty schedule; **Back to employee** restores any unsaved form changes. Deleting an employee still requires confirmation.
 
 **Pay profile:** enter daily rate, normal paid hours, holiday coverage, and the rate's effective-from date. Each change creates an immutable wage version. Use the actual historical effective date when initially entering an existing employee; the current-date default does not backfill historical wages. Saved worked days retain their original wage/rule snapshots until explicitly edited in an unlocked period.
@@ -33,6 +37,8 @@ The Schedule editor accepts multiple duty blocks and break blocks. Late/undertim
 ## Attendance matrix
 
 Choose month/cut-off and filter by employee, site, department, or position. **DUTY is the default tool:** click/drag to record actual in/out and break minutes for one or multiple dates. Other status tools remain available for quick painting. PRESENT is assigned automatically when duty is saved without late/undertime; it is not a painting or reset tool. Right-click opens the contextual editor or comments. A focused day cell can open duty using Enter/Space. Columns and headers remain sticky; small screens retain the scrollable matrix and modal editor.
+
+The Attendance table's totals section shows only **LATE/UT min** and **PRESENT**. Other counts remain available in Summary. Active searches and filters show **Filtered** badges and highlighted controls in Employees, Attendance, Summary, Analytics, and Audit logs. Modal list searches also show a filter indicator. Analytics indicators describe the filters applied to the displayed results.
 
 **Clear entry** is available in the toolbar and right-click menu. Select it and click/drag the dates to clear, then confirm in the in-app modal. It removes attendance status, punches, and the associated pay snapshot together, returning the day to its automatic blank or rest-day display. Reviewed, locked, and empty days are skipped. Clearing leaves an audit record when Attendance capture is enabled; cancelling keeps the data unchanged. Save duty still saves directly without confirmation.
 
@@ -70,8 +76,8 @@ Exports support current filters and custom dates:
 
 - Transactions CSV: original status, actual punches, break duration, overrides, and verification/source flags.
 - Detailed DTR CSV: one row per saved calendar segment, schedule snapshot, hours, rule version, and authorized pay breakdown.
-- Attendance Summary CSV: counts per employee.
-- Duty Summary CSV: date-allocated hours and Staff-visible estimated pay, including separate unworked holiday totals.
+- Attendance Summary CSV: counts per employee, with **FROM** and **TO** columns showing the applied export dates on every row.
+- Duty Summary CSV: date-allocated hours and Staff-visible estimated pay, including separate unworked holiday totals, with **FROM** and **TO** columns.
 
 ## Finalization and audit
 

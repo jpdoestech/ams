@@ -56,8 +56,20 @@ async function run(){
   assert.equal(await employeeActions.evaluate(el=>document.activeElement===el),true);
   await employeeRow.locator('td').nth(1).click();await page.waitForSelector('.employee-form-header');
   await page.locator('#f_first_name').fill('Unsaved employee draft');
+  const chromeBefore=await page.locator('.modal-header').boundingBox(),footerBefore=await page.locator('.modal-footer').boundingBox();
+  await page.locator('.modal-body').evaluate(el=>el.scrollTop=el.scrollHeight);
+  assert.equal((await page.locator('.modal-header').boundingBox()).y,chromeBefore.y);assert.equal((await page.locator('.modal-footer').boundingBox()).y,footerBefore.y);
+  await page.locator('#f_department').selectOption('Operations');assert.equal(await page.locator('#f_position').inputValue(),'');assert.equal(await page.locator('#f_position option[value="Security Guard"]').count(),0);
+  await page.locator('[data-quick-add=department]').click();await page.locator('#quick-lookup-value').fill('Warehouse');await page.locator('[data-quick-save]').click();await page.waitForFunction(()=>document.querySelector('#f_department').value==='Warehouse');
+  await page.locator('[data-quick-add=position]').click();await page.locator('#quick-lookup-value').fill('Inventory clerk');await page.locator('[data-quick-save]').click();await page.waitForFunction(()=>document.querySelector('#f_position').value==='Inventory clerk');
+  assert.equal(await page.locator('#f_first_name').inputValue(),'Unsaved employee draft');
   await screenshot('employee-form-schedule-header');
   await page.locator('[data-act="eformschedule"]').click();await page.waitForSelector('#sch');
+  const scheduleSize=await page.locator('.md').boundingBox();
+  for(let i=0;i<12;i++)await page.locator('[data-act=sadd][data-id=duty]').click();
+  assert.equal((await page.locator('.md').boundingBox()).height,scheduleSize.height);
+  await page.locator('#schb').locator('tr').last().scrollIntoViewIfNeeded();
+  assert.equal(await page.locator('.modal-footer [data-act=ssave]').isVisible(),true);await screenshot('schedule-fixed-chrome');
   await page.getByRole('button',{name:'Back to employee',exact:true}).click();
   assert.equal(await page.locator('#f_first_name').inputValue(),'Unsaved employee draft');
   await page.keyboard.press('Escape');
@@ -107,6 +119,10 @@ async function run(){
   assert.match(await page.locator('#mn .wrap tbody').innerText(),/JDC/);
   assert.equal((await page.locator('#mn .wrap tbody').innerText()).includes('DELA CRUZ'),false);
   await page.locator('.side-nav [data-v="sum"]').click();await page.locator('#stot .card').first().waitFor();
+  await page.locator('#fd').selectOption('Security');await page.locator('.filter-indicator').waitFor();assert.match(await page.locator('.filter-indicator').innerText(),/Department: Security/);
+  let summaryDownload=page.waitForEvent('download');await page.locator('[data-act=sexp]').click();let summaryFile=await summaryDownload;await summaryFile.saveAs('test-results/ui/summary-counts.csv');assert.match(fs.readFileSync('test-results/ui/summary-counts.csv','utf8'),/^"FROM","TO"/);
+  await page.locator('[data-smode=duty]').click();summaryDownload=page.waitForEvent('download');await page.locator('[data-act=sexp]').click();summaryFile=await summaryDownload;await summaryFile.saveAs('test-results/ui/summary-duty.csv');assert.match(fs.readFileSync('test-results/ui/summary-duty.csv','utf8'),/^"FROM","TO"/);
+  await page.locator('[data-smode=cnt]').click();await page.locator('[data-act=fclr]').click();await page.locator('#stot .card').first().waitFor();
   assert.ok(await page.locator('#stot .card').first().evaluate(el=>el.getBoundingClientRect().height<=34),'Compact summary totals');await screenshot('summary-compact');
   await page.locator('.side-nav [data-v="analytics"]').click();await page.locator('#analytics-overview .analytics-chart').first().waitFor();
   await page.locator('#analytics-from').fill('2026-09-01');await page.locator('#analytics-to').fill('2026-10-15');
@@ -133,6 +149,7 @@ async function run(){
   await page.locator('td.c.cm').first().hover();await page.locator('#comment-popover').waitFor();assert.match(await page.locator('#comment-popover').innerText(),/Viewer note <safe>/);
   await page.evaluate(()=>{ROLE='superadmin';shell()});await page.waitForSelector('#gt');
   await page.locator('td[data-r="0"][data-c="0"]').click();await page.locator('#override-toggle').click();
+  assert.deepEqual(await page.locator('#gt thead th.s').allTextContents(),['LATE/UT min','PRESENT']);
   await page.locator('[data-override="RH"]').click();assert.equal(await page.locator('#dov').inputValue(),'RH');await screenshot('duty-code-columns');
   await page.locator('#override-toggle').click();await screenshot('duty-code-list-open');await page.keyboard.press('Escape');assert.equal(await page.locator('#override-list').isVisible(),false);assert.equal(await page.locator('#ov').isVisible(),true);await page.keyboard.press('Escape');
   await page.setViewportSize({width:390,height:844});
@@ -147,13 +164,25 @@ async function run(){
   const exportedBook=new ExcelJS.Workbook();await exportedBook.xlsx.readFile('test-results/ui/attendance-export.xlsx');assert.equal(exportedBook.getWorksheet('Attendance').getCell('C1').value,'Employee Name');assert.equal(exportedBook.getWorksheet('Attendance').views[0].xSplit,3);assert.ok(exportedBook.getWorksheet('Transactions'));
   await page.waitForFunction(()=>!document.querySelector('#ov').classList.contains('on'));
   // Every workspace screen must fit the viewport; wide tables scroll within their containers.
-  for(const [width,height] of [[320,740],[375,812],[768,1024],[844,390],[1024,768],[1366,768],[1920,1080]]){
+  for(const [width,height] of [[320,740],[375,812],[768,1024],[844,390],[1024,768],[1366,768],[1920,1080],[2560,1440],[3440,1440]]){
    await page.setViewportSize({width,height});
    for(const view of ['dash','emp','att','sum','std','usr','analytics','audit']){
     await page.evaluate(view=>{V=view;if(view==='analytics')analyticsMode='overview';shell()},view);
     const ready={dash:'.metric-grid',emp:'#emt',att:'#gt',sum:'#sbd',std:'[data-stab]',usr:'[data-u]',analytics:'.analytics-chart',audit:'#audit-enabled'}[view];await page.locator(ready).first().waitFor();
     const overflow=await page.evaluate(()=>{const main=document.querySelector('#mn'),right=main.getBoundingClientRect().right;return{page:document.documentElement.scrollWidth>innerWidth,main:main.scrollWidth>main.clientWidth+1,controls:[...main.children].filter(el=>!el.hidden&&el.getBoundingClientRect().right>right+2).map(el=>el.id||el.className)}});
     assert.deepEqual(overflow,{page:false,main:false,controls:[]},`Responsive screen: ${view} at ${width}x${height}`);
+    const contentWidth=await page.locator('#mn').evaluate(el=>el.getBoundingClientRect().width);
+    const contentLimit=view==='dash'?1600:view==='analytics'?1800:2200;
+    assert.ok(contentWidth<=contentLimit+1,'Large-screen content width: '+view);
+    assert.ok(contentWidth>=Math.min(width-238,contentLimit)-20,'Content uses available width: '+view);
+    if(width===3440&&['dash','att','analytics'].includes(view))await screenshot(view+'-ultrawide');
+    if(view==='emp'&&[320,768,844,1366,3440].includes(width)){
+     await page.evaluate(()=>schM(E[1].id));await page.locator('.modal-footer [data-act=ssave]').waitFor();const emptyHeight=(await page.locator('.md').boundingBox()).height;
+     await page.evaluate(()=>schM(E[0].id));assert.equal((await page.locator('.md').boundingBox()).height,emptyHeight,'Schedule size must not depend on row count');
+     const footer=await page.locator('.modal-footer').boundingBox();assert.ok(footer.y+footer.height<=height,'Modal footer fits viewport');
+     assert.equal(await page.locator('.modal-body').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,'Modal body confines table overflow');
+     await screenshot('schedule-responsive-'+width);await page.keyboard.press('Escape');
+    }
     if(view==='analytics'&&[375,1366].includes(width))await screenshot('overview-responsive-'+width);
     if(view==='std')for(const tab of ['sto','sup','hol','pay']){await page.locator('[data-stab="'+tab+'"]').click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Standards '+tab+' at '+width)}
    }
@@ -163,7 +192,7 @@ async function run(){
   await page.locator('#analytics-search').fill('does-not-exist');await page.locator('#analytics-form button[type=submit]').click();await page.locator('.overview-empty').waitFor();assert.equal(await page.locator('#analytics-data').isVisible(),false);
   await page.evaluate(()=>login());await page.waitForSelector('#le');await screenshot('login-dark');
   assert.equal(await page.locator('select[data-theme-preference]').isVisible(),true);
-  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and seven responsive viewport sizes.');
+  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and nine responsive viewport sizes.');
  }finally{await browser?.close();server.kill()}
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

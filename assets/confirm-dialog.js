@@ -16,7 +16,9 @@
     const actions=document.createElement('div');actions.className='confirm-actions';
     const cancel=document.createElement('button');cancel.type='button';cancel.className='btn';cancel.textContent='Cancel';
     const accept=document.createElement('button');accept.type='button';accept.className='btn '+(deleting?'danger':'p');accept.textContent=options.confirmText||(deleting?'Delete':'Confirm');
-    actions.append(cancel,accept);dialog.append(eyebrow,heading,description,actions);layer.append(dialog);document.body.append(layer);
+    const header=document.createElement('header');header.className='confirm-header';header.append(eyebrow,heading);
+    const body=document.createElement('div');body.className='confirm-body';body.append(description);
+    actions.append(cancel,accept);dialog.append(header,body,actions);layer.append(dialog);document.body.append(layer);
     const background=['app','ov','menu'].map(id=>document.getElementById(id)).filter(Boolean).map(el=>({el,inert:el.inert}));
     background.forEach(({el})=>{el.inert=true});
     function finish(accepted){

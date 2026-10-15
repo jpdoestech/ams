@@ -7,7 +7,7 @@ Opening the source `index.html` directly with `file://` starts offline demo mode
 ## 1. Supabase database and authentication
 
 1. Create a Supabase project. In SQL Editor, run **the complete `supabase/schema.sql`** as the database owner. It includes all ordered migrations and is rerunnable. Do not run a partial selection of a function body.
-2. For an existing AMS database, take a database backup first. Run missing ordered files in `supabase/migrations/` (001 through 006). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. If already updated through 005, apply **006_audit_controls.sql** before deploying the new audit controls. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
+2. For an existing AMS database, take a database backup first. Run missing ordered files in `supabase/migrations/` (001 through 007). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. If already updated through 005, apply **006_audit_controls.sql** and then **007_department_positions.sql** before deploying the corresponding features. Migration 007 derives department/position mappings from existing employee assignments without rewriting their values. New or changed position assignments must belong to the selected department. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
 3. Enable Email authentication. Set Authentication → URL Configuration → Site URL to the production Vercel URL. Add any preview URLs used for sign-in/confirmation to the allowed redirect list.
 4. Create your account using **Request access**, or create it in the Supabase Auth dashboard. All accounts start inactive with role `viewer`.
 5. In SQL Editor, explicitly approve your own trusted account, substituting its exact email:
@@ -76,7 +76,7 @@ Existing v4 locks remain effective, but have no newly generated holiday-entitlem
 
 - **Demo mode on Vercel:** check `SUPABASE_URL` and `SUPABASE_ANON_KEY` and redeploy.
 - **Awaiting access:** approve the profile's Active flag and role with a Superadmin.
-- **Missing table/RPC:** ensure all six migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
+- **Missing table/RPC:** ensure all seven migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
 - **No pay:** check effective wage date, actual punches, and holiday coverage. Blank cells do not earn worked pay.
 - **Wage date already exists:** versions cannot be replaced; insert a new effective date. Existing worked-day snapshots are unchanged.
 - **Sync 403:** the caller must be active Staff/Superadmin, and the destination must be shared with the service account.

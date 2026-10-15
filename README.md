@@ -19,13 +19,14 @@ assets/
   theme.js                      Saved light/dark/system appearance before paint
   layout.js                     Saved desktop sidebar preference before paint
   ui.js                         SVG icons, controls and navigation accessibility
+  ui-workflows.js               Fixed modal chrome, filter indicators, dependent lookups
   styles.css                    Workspace design tokens and responsive layouts
 api/
   config.js                     Public runtime settings from Vercel env
   sync.js                       Authenticated Supabase → Google Sheets sync
 supabase/
   schema.sql                    Generated complete fresh-install schema
-  migrations/                   Ordered additive migrations 001–006
+  migrations/                   Ordered additive migrations 001–007
 scripts/                        Static build and schema-generation scripts
 tests/                          PostgreSQL, calculation, DOM, and API tests
 docs/DEPLOYMENT.md               Supabase, Vercel, Google setup and rollout
