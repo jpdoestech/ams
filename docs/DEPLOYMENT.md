@@ -2,6 +2,8 @@
 
 Run `npm install` before the frontend build. The build copies the pinned ExcelJS browser bundle and license into public assets for XLSX downloads; the library loads only when Excel export is requested, from the same origin. No external spreadsheet service or new Supabase migration is required for this export.
 
+Opening the source `index.html` directly with `file://` starts offline demo mode, skips `/api/config`, and loads ExcelJS from the installed `node_modules` package. Opening `public/index.html` directly uses the built library beside the exporter. Use `npm run dev` or the Vercel deployment for server configuration and connected features. `npm run test:file` verifies both direct-file modes, including a valid XLSX download with networking disabled.
+
 ## 1. Supabase database and authentication
 
 1. Create a Supabase project. In SQL Editor, run **the complete `supabase/schema.sql`** as the database owner. It includes all ordered migrations and is rerunnable. Do not run a partial selection of a function body.

@@ -55,7 +55,7 @@
   return workbook;
  }
  // Resolve beside this script, and version the lazy asset to avoid cached failures.
- const libraryURL=typeof document==='undefined'?null:new URL('exceljs.min.js?v=4.4.0',document.currentScript?.src||new URL('assets/attendance-xlsx.js',document.baseURI)).href;
+ const libraryURL=typeof document==='undefined'?null:(()=>{const source=document.currentScript,base=source?.src||new URL('assets/attendance-xlsx.js',document.baseURI).href,path=new URL(base).protocol==='file:'?(source?.dataset.fileLibrary||'../node_modules/exceljs/dist/exceljs.min.js'):'exceljs.min.js',url=new URL(path,base);url.searchParams.set('v','4.4.0');return url.href})();
  let libraryPromise=null;
  function library(){
   if(typeof root.ExcelJS?.Workbook==='function')return Promise.resolve(root.ExcelJS);if(libraryPromise)return libraryPromise;

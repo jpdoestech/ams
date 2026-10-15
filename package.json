@@ -7,7 +7,8 @@
     "test": "node scripts/schema.js --check && node --test tests/*.test.js",
     "schema": "node scripts/schema.js",
     "dev": "node scripts/dev.js",
-    "test:ui": "node scripts/ui-check.js"
+    "test:ui": "node scripts/ui-check.js",
+    "test:file": "node scripts/build.js && node scripts/file-check.js"
   },
   "repository": {
     "type": "git",

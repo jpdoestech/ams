@@ -8,6 +8,7 @@ Employee deployment, schedules, attendance, and duty/pay estimates in the existi
 index.html                      Frontend entry point
 assets/
   app.js                        Existing screens, state, Supabase adapter
+  bootstrap.js                  Configuration/SDK startup with offline file demo support
   data-tools.js                 Atomic saves, staged import, DTR/CSV exports
   attendance-xlsx.js            Formatted attendance matrix and transaction XLSX export
   analytics.js                  Date-bounded attendance and workforce measures
