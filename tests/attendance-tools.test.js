@@ -6,6 +6,7 @@ beforeEach(async()=>{dom=await browser();w=dom.window;w.eval(`V='att';DB=[];H=[]
 afterEach(()=>dom.window.close());
 async function seed(date,override=false){
  await w.eval(`saveAttendance([changeFor(E[0].id,${JSON.stringify(date)},dutyRow(E[0],${JSON.stringify(date)},{tin:'08:00',tout:'17:00',brk:60${override?",ov:'RH',why:'Authorized correction'":''}},'manual').row)])`);
+ if(override)await w.eval(`(async()=>{const before=P;let row=S.attendance.find(r=>r.emp_id===E[0].id&&r.date===${JSON.stringify(date)});await reviewEntries([row],'submit');P={id:'independent-reviewer',email:'reviewer@demo'};await reviewEntries([S.attendance.find(r=>r.emp_id===row.emp_id&&r.date===row.date)],'approve');P=before})()`);
  await w.eval('load()');w.eval('grid()');
 }
 const exists=date=>w.eval(`S.attendance.some(r=>r.emp_id===E[0].id&&r.date===${JSON.stringify(date)})`);

@@ -50,10 +50,10 @@ These tests do not substitute for live Supabase Auth/PostgREST, Vercel, or Googl
 ## Deliberate boundaries and remaining policy work
 
 - Single organization per Supabase database; there is no existing tenant/client payroll hierarchy to isolate. Separate organizations must use separate projects until a tenant model is implemented.
-- Effective-dated wages are implemented. Full effective-dated assignments/schedules, multiple actual shifts per employee/date, and multiple assigned rest weekdays remain outside this change. Saved duty preserves its schedule/location snapshot.
+- Effective-dated wages, assignments, and schedules are implemented. Baselines preserve the existing setup without reconstructing unknown earlier transfers. Workforce grouping resolves dated assignments, and worked-hour grouping prefers saved duty snapshots. Multiple actual shifts per employee/date and multiple assigned rest weekdays remain outside this change.
 - Duty pay is an estimate, not a complete payroll product. Monthly-paid divisors, leave eligibility/pay, taxes, deductions, 13th-month pay, approved OT authorization, and per-worker NSD exemptions need explicit company policy and additional modeling.
 - Break location follows configured blocks when durations match; otherwise a centered break is assumed. Confirm actual break placement for night calculations. Time rounding/grace is currently exact-minute/no-grace.
 - Successive-holiday edge cases and sector/CBA-specific exceptions require policy review. Do not resolve an unknown predecessor by inventing duty. Higher company-wide rule versions are supported; branch/client scopes are not.
-- Finalized cut-offs are immutable. A dedicated additive adjustment workflow remains to be built; database-owner corrections must preserve originals and record the reason/adjustment rather than reopening a cutoff.
+- Finalized cut-offs remain immutable. Signed minute/amount corrections use a separate adjustment ledger with independent superadmin decisions and source snapshots. Approval does not automatically recalculate or disburse payroll; approved adjustments must be reconciled through the payroll process.
 - Legacy v4 locks predate entitlement snapshots; they stay protected but need reconciliation. Migration/backfill does not certify historical ambiguity.
 - The compact responsive matrix/modal workflow is preserved; a separate mobile card view and generalized undo are not implemented.

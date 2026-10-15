@@ -5,7 +5,7 @@
  root.AMSBoot=(async()=>{
   if(location.protocol==='file:')root.AMS_CONFIG={};
   else await load(new URL('/api/config',location.href).href);
-  if(root.AMS_CONFIG?.URL)await load('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
+  if(root.AMS_CONFIG?.URL)await load(new URL('supabase-js.js',base).href);
   await load(new URL('app.js',base).href);
  })().catch(error=>{const message=document.createElement('p');message.setAttribute('role','alert');message.className='bootstrap-error';message.textContent=error.message+'. Refresh the page to retry.';document.getElementById('app').replaceChildren(message)});
 })(globalThis);

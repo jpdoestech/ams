@@ -31,6 +31,7 @@ test('single Save duty saves directly and still requires a reason for an overrid
  assert.equal(w.document.querySelector('.confirm-layer'),null);
 });
 test('bulk Save duty saves directly while protecting reviewed entries',async()=>{
+ await w.eval(`(async()=>{const before=P;const row=S.attendance.find(r=>r.emp_id===E[0].id&&r.date==='2026-11-01');await reviewEntries([row],'submit');P={id:'independent-reviewer',email:'reviewer@demo'};await reviewEntries([S.attendance.find(r=>r.emp_id===E[0].id&&r.date==='2026-11-01')],'approve');P=before;await load()})()`);
  openDuty([[0,0],[0,1],[0,2]]);
  w.document.querySelector('[data-act="dsave"]').click();
  await waitUntil(()=>!w.document.getElementById('ov').classList.contains('on'));

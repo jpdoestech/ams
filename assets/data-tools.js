@@ -14,6 +14,7 @@ async function saveAttendance(changes,overwriteReviewed=false){
       const key=c.emp_id+'|'+c.date;if(seen.has(key))throw Error('Duplicate employee/date');seen.add(key);
       const old=draft.attendance.find(r=>r.emp_id==c.emp_id&&r.date==c.date),e=E.find(e=>e.id==c.emp_id);
       if((old?.revision??(old?0:null))!==c.expected_revision)throw Error('Attendance changed; reload before saving');
+      if(old?.review_status==='submitted')throw Error('Submitted attendance must be returned before editing');
       if(old?.reviewed&&!overwriteReviewed)throw Error('Reviewed entry requires explicit overwrite');
       const touched=[c.date,...(old?.segments||[]).map(s=>s.date),...(c.row?.segments||[]).map(s=>s.date)];
       if(touched.some(isLocked))throw Error('Cut-off is locked');
@@ -28,6 +29,7 @@ async function saveAttendance(changes,overwriteReviewed=false){
           row=calculated.row;if(calculated.pay)draft.attendance_pay.push(calculated.pay);
         }
         if((row.segments||[]).some(s=>isLocked(s.date)))throw Error('Cut-off is locked');
+        Object.assign(row,{review_status:'draft',reviewed:false,edited_by:actorId(),submitted_by:null,submitted_at:null,decided_by:null,decided_at:null,review_note:null});
         row.revision=Date.now()*1000+Math.floor(Math.random()*1000);draft.attendance.push(row);
       }
       if(auditAllowed("attendance",draft))draft.audit_log.push({id:uid(),at:new Date().toISOString(),user_email:P?.email||'demo',action:'attendance.save',detail:{old:old||null,new:draft.attendance.find(r=>r.emp_id==c.emp_id&&r.date==c.date)||null}});
@@ -85,9 +87,9 @@ document.addEventListener('click',event=>{if(!event.target.hasAttribute('data-im
 
 function transactionsCSV(employees,rows){
   const map=new Map(employees.map(e=>[e.id,e]));
-  const header=['emp_no','name','assignment_location','department','position','date','type','late_min','ut_min','time_in','time_out','break_min','duty_code','override_code','override_reason','source','verified','reviewed'];
+  const header=['emp_no','name','assignment_location','department','position','date','type','late_min','ut_min','time_in','time_out','break_min','duty_code','override_code','override_reason','source','verified','reviewed','review_status','submitted_at','decided_at','review_note'];
   return[header,...rows.filter(r=>map.has(r.emp_id)).sort((a,b)=>a.date.localeCompare(b.date)||a.emp_id.localeCompare(b.emp_id)).map(r=>{
-    const e=map.get(r.emp_id);return[e.emp_no,`${e.last_name}, ${e.first_name}`,r.schedule_snapshot?.site??e.site,e.department,e.position,r.date,r.type,r.late||0,r.ut||0,r.time_in,r.time_out,r.break_min,r.duty_code,r.override_code,r.override_reason,r.source,!!r.verified,!!r.reviewed];
+    const e=employeeAt(map.get(r.emp_id),r.date);return[e.emp_no,`${e.last_name}, ${e.first_name}`,r.schedule_snapshot?.site??e.site,r.schedule_snapshot?.department??e.department,r.schedule_snapshot?.position??e.position,r.date,r.type,r.late||0,r.ut||0,r.time_in,r.time_out,r.break_min,r.duty_code,r.override_code,r.override_reason,r.source,!!r.verified,!!r.reviewed,reviewStatus(r),r.submitted_at,r.decided_at,r.review_note];
   })];
 }
 function dtrCSV(employees,rows,pays,start,end){

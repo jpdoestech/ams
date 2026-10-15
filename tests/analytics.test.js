@@ -1,6 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {dates,build}=require('../assets/analytics');
 const employee={id:'a',emp_no:'1',status:'Active',date_hired:'2026-10-01',site:'Alpha',department:'Security'};
+
+test('workforce groups and assignment filters follow dated transfers and saved duty snapshots',()=>{
+ const context=(e,d)=>({...e,site:d<'2026-10-03'?'Alpha':'Beta'}),attendance=[{emp_id:'a',date:'2026-10-01',type:'PRESENT',verified:true,reg_min:480,schedule_snapshot:{site:'Alpha',department:'Security'}},{emp_id:'a',date:'2026-10-04',type:'PRESENT',verified:true,reg_min:480,schedule_snapshot:{site:'Beta',department:'Security'}}];
+ const all=build({employees:[employee],attendance,start:'2026-10-01',end:'2026-10-04',context});
+ assert.deepEqual(all.groups.map(g=>[g.site,g.start,g.end,g.hours]),[['Alpha',1,0,8],['Beta',0,1,8]]);
+ const beta=build({employees:[employee],attendance,start:'2026-10-01',end:'2026-10-04',context,include:e=>e.site==='Beta'});
+ assert.equal(beta.startHeadcount,0);assert.equal(beta.endHeadcount,1);assert.equal(beta.totals.hours,8);assert.equal(beta.totals.scheduled,2);
+});
 test('analytics validates real, ordered date ranges with a bounded inclusive length',()=>{
  assert.equal(dates('2026-10-01','2026-10-03').length,3);
  for(const [a,b] of [['2026-02-30','2026-03-01'],['2026-10-03','2026-10-01'],['2025-01-01','2026-10-01']])assert.throws(()=>dates(a,b));

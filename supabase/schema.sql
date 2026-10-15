@@ -532,3 +532,290 @@ drop trigger if exists check_employee_department_position on employees;
 create trigger check_employee_department_position before insert or update on employees for each row execute function check_department_position();
 drop trigger if exists ams_audit on department_positions;
 create trigger ams_audit after insert or update or delete on department_positions for each row execute function audit_mutation();
+
+
+-- Explicit attendance review, independent approval, and an immutable decision trail.
+begin;
+alter table attendance add column if not exists review_status text not null default 'draft'
+ check(review_status in ('draft','submitted','approved','returned')),
+ add column if not exists edited_by uuid,add column if not exists submitted_by uuid,
+ add column if not exists submitted_at timestamptz,add column if not exists decided_by uuid,
+ add column if not exists decided_at timestamptz,add column if not exists review_note text;
+create table if not exists attendance_review_events(
+ id uuid primary key default gen_random_uuid(),emp_id uuid not null references employees(id),date date not null,
+ action text not null,actor_id uuid,actor_email text,at timestamptz not null default now(),
+ revision bigint not null,note text not null default '',snapshot jsonb not null default '{}'
+);
+create index if not exists review_events_date on attendance_review_events(date,emp_id);
+alter table attendance_review_events enable row level security;
+revoke all on attendance_review_events from anon,authenticated;
+grant select on attendance_review_events to authenticated;
+drop policy if exists read_review on attendance_review_events;
+create policy read_review on attendance_review_events for select to authenticated using(my_role() in ('staff','superadmin'));
+
+-- Retain the existing calculation/transaction implementation as a private helper.
+do $$ begin
+ if to_regprocedure('public.save_attendance_core(jsonb,boolean)') is null then
+  execute replace(pg_get_functiondef('save_attendance_batch(jsonb,boolean)'::regprocedure),'FUNCTION public.save_attendance_batch(', 'FUNCTION public.save_attendance_core(');
+ end if;
+ if to_regprocedure('public.finalize_cutoff_core(date,date)') is null then
+  execute replace(pg_get_functiondef('finalize_cutoff(date,date)'::regprocedure),'FUNCTION public.finalize_cutoff(', 'FUNCTION public.finalize_cutoff_core(');
+ end if;
+end $$;
+revoke all on function save_attendance_core(jsonb,boolean),finalize_cutoff_core(date,date) from public,anon,authenticated;
+
+create or replace function reset_attendance_review() returns trigger language plpgsql security definer set search_path=public as $$
+begin
+ -- Core saves always issue a new revision. Approval RPCs also advance it, but
+ -- change status explicitly; detect content edits independently of that metadata.
+ if TG_OP='INSERT' or (to_jsonb(new)-array['revision','reviewed','review_status','edited_by','submitted_by','submitted_at','decided_by','decided_at','review_note'])
+   is distinct from (to_jsonb(old)-array['revision','reviewed','review_status','edited_by','submitted_by','submitted_at','decided_by','decided_at','review_note'])
+   or (new.revision is distinct from old.revision and new.review_status is not distinct from old.review_status) then
+  new.review_status='draft';new.reviewed=false;new.edited_by=auth.uid();
+  new.submitted_by=null;new.submitted_at=null;new.decided_by=null;new.decided_at=null;new.review_note=null;
+ end if;
+ return new;
+end $$;
+revoke all on function reset_attendance_review() from public,anon,authenticated;
+drop trigger if exists reset_review on attendance;
+create trigger reset_review before insert or update on attendance for each row execute function reset_attendance_review();
+
+create or replace function save_attendance_batch(p_changes jsonb,p_overwrite_reviewed boolean default false)
+returns jsonb language plpgsql security definer set search_path=public as $$
+begin
+ if my_role() is null or my_role() not in ('staff','superadmin') then raise exception 'Staff access required';end if;
+ perform pg_advisory_xact_lock(841562);
+ if exists(select 1 from jsonb_array_elements(p_changes) c join attendance a on a.emp_id=(c->>'emp_id')::uuid and a.date=(c->>'date')::date where a.review_status='submitted') then
+  raise exception 'Submitted attendance must be returned before editing';end if;
+ return save_attendance_core(p_changes,p_overwrite_reviewed);
+end $$;
+revoke all on function save_attendance_batch(jsonb,boolean) from public,anon;
+grant execute on function save_attendance_batch(jsonb,boolean) to authenticated;
+
+create or replace function review_attendance(p_rows jsonb,p_action text,p_note text default '')
+returns int language plpgsql security definer set search_path=public as $$
+declare c jsonb;r attendance;n int=0;
+begin
+ if my_role() is null or my_role() not in ('staff','superadmin') then raise exception 'Staff access required';end if;
+ if p_action is null or p_action not in ('submit','approve','return') then raise exception 'Invalid review action';end if;
+ if p_action<>'submit' and my_role()<>'superadmin' then raise exception 'Superadmin approval required';end if;
+ if p_action='return' and coalesce(length(btrim(p_note)),0)<3 then raise exception 'Return reason required';end if;
+ if jsonb_typeof(p_rows) is distinct from 'array' or jsonb_array_length(p_rows) not between 1 and 1000 then raise exception 'Select 1 to 1000 entries';end if;
+ if exists(select 1 from jsonb_array_elements(p_rows) item group by item->>'emp_id',item->>'date' having count(*)>1) then raise exception 'Duplicate review entry';end if;
+ perform pg_advisory_xact_lock(841562);
+ for c in select value from jsonb_array_elements(p_rows) loop
+  select * into strict r from attendance where emp_id=(c->>'emp_id')::uuid and date=(c->>'date')::date for update;
+  if r.revision is distinct from (c->>'revision')::bigint then raise exception 'Attendance changed; reload before review';end if;
+  if p_action='submit' then
+   if r.review_status not in ('draft','returned') then raise exception 'Only draft or returned entries can be submitted';end if;
+   if r.type in ('PRESENT','LATE/UT') and not r.verified then raise exception 'Record actual duty before submitting';end if;
+  else
+   if r.review_status<>'submitted' then raise exception 'Only submitted entries can be decided';end if;
+   if p_action='approve' and (r.submitted_by=auth.uid() or r.edited_by=auth.uid()) then raise exception 'A different superadmin must approve this attendance';end if;
+  end if;
+  update attendance set review_status=case p_action when 'submit' then 'submitted' when 'approve' then 'approved' else 'returned' end,
+   reviewed=p_action='approve',submitted_by=case when p_action='submit' then auth.uid() else submitted_by end,
+   submitted_at=case when p_action='submit' then now() else submitted_at end,
+   decided_by=case when p_action<>'submit' then auth.uid() end,decided_at=case when p_action<>'submit' then now() end,
+   review_note=nullif(btrim(p_note),''),revision=nextval('attendance_revision_seq') where emp_id=r.emp_id and date=r.date;
+  insert into attendance_review_events(emp_id,date,action,actor_id,actor_email,revision,note,snapshot)
+   select r.emp_id,r.date,p_action,auth.uid(),email,r.revision,coalesce(btrim(p_note),''),to_jsonb(r) from profiles where id=auth.uid();
+  n=n+1;
+ end loop;
+ return n;
+end $$;
+revoke all on function review_attendance(jsonb,text,text) from public,anon;
+grant execute on function review_attendance(jsonb,text,text) to authenticated;
+
+create or replace function finalize_cutoff(p_start date,p_end date) returns uuid language plpgsql security definer set search_path=public as $$
+begin
+ if my_role() is distinct from 'superadmin' then raise exception 'Superadmin access required';end if;
+ perform pg_advisory_xact_lock(841562);
+ if exists(select 1 from attendance a where (a.date between p_start and p_end or exists(select 1 from jsonb_array_elements(coalesce(a.segments,'[]')) s where (s->>'date')::date between p_start and p_end)) and a.review_status<>'approved') then
+  raise exception 'Unapproved attendance remains; submit and approve entries before finalization';end if;
+ return finalize_cutoff_core(p_start,p_end);
+end $$;
+revoke all on function finalize_cutoff(date,date) from public,anon;
+grant execute on function finalize_cutoff(date,date) to authenticated;
+commit;
+
+
+-- Append-only dated assignments and schedules; existing duty/pay snapshots stay intact.
+begin;
+create table if not exists employee_assignment_versions(
+ id uuid primary key default gen_random_uuid(),version_no bigint generated always as identity,
+ emp_id uuid not null references employees(id) on delete cascade,effective_from date not null,
+ snapshot jsonb not null,reason text not null,created_by uuid,created_at timestamptz not null default now()
+);
+create index if not exists assignment_effective on employee_assignment_versions(emp_id,effective_from desc,version_no desc);
+alter table employee_assignment_versions enable row level security;
+revoke all on employee_assignment_versions from anon,authenticated;
+grant select on employee_assignment_versions to authenticated;
+drop policy if exists assignment_read on employee_assignment_versions;
+create policy assignment_read on employee_assignment_versions for select to authenticated using(my_role() is not null);
+create or replace function assignment_fields(e employees) returns jsonb language sql immutable set search_path=public as $$
+ select jsonb_build_object('department',e.department,'position',e.position,'site',e.site,'location',e.location,'time_in',e.time_in,'time_out',e.time_out,'rest_day',e.rest_day)
+$$;
+revoke all on function assignment_fields(employees) from public,anon,authenticated;
+insert into employee_assignment_versions(emp_id,effective_from,snapshot,reason)
+ select e.id,'0001-01-01',jsonb_build_object('employee',assignment_fields(e),'blocks',(select coalesce(jsonb_agg(to_jsonb(b) order by b.sort),'[]') from duty_blocks b where b.emp_id=e.id)),
+ 'Migration baseline; earlier assignment history was not recorded' from employees e
+ where not exists(select 1 from employee_assignment_versions v where v.emp_id=e.id);
+create or replace function employee_at(p_emp uuid,p_date date) returns employees language plpgsql stable security definer set search_path=public as $$
+declare e employees;s jsonb;
+begin
+ select * into strict e from employees where id=p_emp;
+ select snapshot->'employee' into s from employee_assignment_versions where emp_id=p_emp and effective_from<=p_date order by effective_from desc,version_no desc limit 1;
+ return jsonb_populate_record(e,coalesce(s,'{}'));
+end $$;
+create or replace function employee_blocks(p_emp uuid,p_date date) returns setof duty_blocks language plpgsql stable security definer set search_path=public as $$
+declare blocks jsonb;
+begin
+ select snapshot->'blocks' into blocks from employee_assignment_versions where emp_id=p_emp and effective_from<=p_date order by effective_from desc,version_no desc limit 1;
+ if blocks is null then return query select * from duty_blocks where emp_id=p_emp;else return query select * from jsonb_populate_recordset(null::duty_blocks,blocks);end if;
+end $$;
+revoke all on function employee_at(uuid,date),employee_blocks(uuid,date) from public,anon,authenticated;
+
+create or replace function save_assignment_version(p_emp uuid,p_from date,p_assignment jsonb,p_blocks jsonb,p_reason text,p_expected bigint)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare e employees;b duty_blocks;v_id uuid=gen_random_uuid();latest bigint;allowed jsonb;
+begin
+ if my_role() is null or my_role() not in ('staff','superadmin') then raise exception 'Staff access required';end if;
+ perform pg_advisory_xact_lock(841562);
+ select * into strict e from employees where id=p_emp;
+ select max(version_no) into latest from employee_assignment_versions where emp_id=p_emp;
+ if latest is distinct from p_expected then raise exception 'Schedule changed; reload before saving';end if;
+ if p_from is null or p_from<coalesce(e.date_hired,'1900-01-01') or coalesce(length(btrim(p_reason)),0)<3 then raise exception 'Effective date and reason required';end if;
+ if exists(select 1 from cutoff_locks where end_date>=p_from) then raise exception 'Effective date affects finalized attendance; choose a later date';end if;
+ if exists(select 1 from attendance where emp_id=p_emp and date>=p_from and review_status in ('submitted','approved')) then raise exception 'Return affected attendance before changing its schedule';end if;
+ if jsonb_typeof(p_assignment) is distinct from 'object' or jsonb_typeof(p_blocks) is distinct from 'array' or jsonb_array_length(p_blocks)>48 then raise exception 'Invalid assignment or schedule';end if;
+ e=jsonb_populate_record(e,p_assignment - array['id','emp_no','date_hired','date_end','status']);allowed=assignment_fields(e);
+ if e.rest_day is null or e.rest_day not in ('Sun','Mon','Tue','Wed','Thu','Fri','Sat','None') or e.time_in is null or e.time_out is null
+  or e.time_in !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or e.time_out !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or e.time_in=e.time_out then raise exception 'Invalid default schedule';end if;
+ if nullif(e.position,'') is not null and not exists(select 1 from department_positions m join lookups d on d.id=m.department_id join lookups p on p.id=m.position_id where d.value=e.department and p.value=e.position) then raise exception 'Position must belong to the selected department';end if;
+ for b in select * from jsonb_populate_recordset(null::duty_blocks,p_blocks) loop
+  if b.kind is null or b.kind not in ('duty','break') or b.t_start is null or b.t_end is null or b.t_start !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or b.t_end !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or b.t_start=b.t_end then raise exception 'Invalid schedule block';end if;
+  if b.kind='duty' and not exists(select 1 from stores where id=b.store_id) then raise exception 'Choose a store for each duty block';end if;
+ end loop;
+ insert into employee_assignment_versions(id,emp_id,effective_from,snapshot,reason,created_by)
+ values(v_id,p_emp,p_from,jsonb_build_object('employee',allowed,'blocks',p_blocks),btrim(p_reason),auth.uid());
+ return v_id;
+end $$;
+revoke all on function save_assignment_version(uuid,date,jsonb,jsonb,text,bigint) from public,anon;
+grant execute on function save_assignment_version(uuid,date,jsonb,jsonb,text,bigint) to authenticated;
+create or replace function capture_assignment() returns trigger language plpgsql security definer set search_path=public as $$
+declare today date=(now() at time zone 'Asia/Manila')::date;blocks jsonb;
+begin
+ perform pg_advisory_xact_lock(841562);
+ if TG_OP='INSERT' then
+  insert into employee_assignment_versions(emp_id,effective_from,snapshot,reason,created_by)
+  values(new.id,'0001-01-01',jsonb_build_object('employee',assignment_fields(new),'blocks','[]'::jsonb),'Initial employee assignment',auth.uid());
+ elsif assignment_fields(new) is distinct from assignment_fields(old) then
+  if exists(select 1 from cutoff_locks where end_date>=today) or exists(select 1 from attendance where emp_id=new.id and date>=today and review_status in ('submitted','approved')) then raise exception 'Assignment affects protected attendance; use a later effective schedule date';end if;
+  select coalesce(jsonb_agg(to_jsonb(b)),'[]') into blocks from employee_blocks(new.id,today) b;
+  insert into employee_assignment_versions(emp_id,effective_from,snapshot,reason,created_by)
+  values(new.id,today,jsonb_build_object('employee',assignment_fields(new),'blocks',blocks),'Employee form update effective today',auth.uid());
+ end if;
+ return new;
+end $$;
+revoke all on function capture_assignment() from public,anon,authenticated;
+drop trigger if exists capture_assignment on employees;
+create trigger capture_assignment after insert or update on employees for each row execute function capture_assignment();
+create or replace function preserve_assignment_version() returns trigger language plpgsql set search_path=public as $$
+begin
+ if TG_OP='DELETE' and pg_trigger_depth()>1 then return old;end if;
+ raise exception 'Assignment versions are immutable; insert a new version';
+end $$;
+revoke all on function preserve_assignment_version() from public,anon,authenticated;
+drop trigger if exists immutable on employee_assignment_versions;
+create trigger immutable before update or delete on employee_assignment_versions for each row execute function preserve_assignment_version();
+drop trigger if exists ams_audit on employee_assignment_versions;
+create trigger ams_audit after insert on employee_assignment_versions for each row execute function audit_mutation();
+
+-- Adapt the existing tested calculators to resolve the context on the work date.
+do $$ declare signature text;definition text;begin
+ foreach signature in array array['day_code(uuid,date)','calculate_duty(uuid,date,text,text,integer,text)','holiday_entitlement(uuid,date)','save_attendance_core(jsonb,boolean)','finalize_cutoff_core(date,date)'] loop
+  definition=pg_get_functiondef(signature::regprocedure);
+  definition=replace(definition,'select * into strict e from employees where id=p_emp;','select * into strict e from employee_at(p_emp,p_date);');
+  definition=replace(definition,'select * into strict e from employees where id=emp;','select * into strict e from employee_at(emp,dt);');
+  definition=replace(definition,$s$from duty_blocks where emp_id=p_emp and kind='break'$s$,$s$from employee_blocks(p_emp,p_date) where kind='break'$s$);
+  definition=replace(definition,'from duty_blocks b where emp_id=emp','from employee_blocks(emp,dt) b');
+  definition=replace(definition,$s$jsonb_build_object('employee',to_jsonb(e),'entitlement',ent)$s$,$s$jsonb_build_object('employee',to_jsonb(employee_at(e.id,dt)),'entitlement',ent)$s$);
+  if position($s$'department',e.department,'position',e.position$s$ in definition)=0 then
+   definition=replace(definition,$s$'rest_day',e.rest_day,'site',e.site,'location',e.location$s$,$s$'rest_day',e.rest_day,'site',e.site,'location',e.location,'department',e.department,'position',e.position$s$);
+  end if;
+  execute definition;
+ end loop;
+end $$;
+do $$ begin
+ execute replace(pg_get_functiondef('audit_mutation()'::regprocedure),$s$when TG_TABLE_NAME='duty_blocks'$s$,$s$when TG_TABLE_NAME in ('duty_blocks','employee_assignment_versions')$s$);
+end $$;
+-- Finalization's classification already calls dated day_code; source snapshots remain immutable.
+commit;
+
+
+-- Additive corrections: never unlock, replace or recalculate the original period.
+begin;
+create table if not exists cutoff_adjustments(
+ id uuid primary key default gen_random_uuid(),emp_id uuid not null references employees(id),
+ lock_id uuid not null references cutoff_locks(id),date date not null,
+ minutes_delta integer not null default 0 check(abs(minutes_delta)<=1440),
+ amount_delta numeric(14,2) not null default 0 check(amount_delta::text not in ('NaN','Infinity','-Infinity')),
+ reason text not null check(length(btrim(reason))>=3),reference text not null default '',
+ original jsonb not null,status text not null default 'pending' check(status in ('pending','approved','rejected')),
+ submitted_by uuid not null,submitted_at timestamptz not null default now(),
+ decided_by uuid,decided_at timestamptz,decision_note text,check(minutes_delta<>0 or amount_delta<>0)
+);
+create index if not exists cutoff_adjustments_dates on cutoff_adjustments(date,emp_id);
+create table if not exists cutoff_adjustment_events(
+ id uuid primary key default gen_random_uuid(),adjustment_id uuid not null references cutoff_adjustments(id),
+ action text not null,actor_id uuid not null,at timestamptz not null default now(),note text not null
+);
+alter table cutoff_adjustments enable row level security;alter table cutoff_adjustment_events enable row level security;
+revoke all on cutoff_adjustments,cutoff_adjustment_events from anon,authenticated;
+grant select on cutoff_adjustments,cutoff_adjustment_events to authenticated;
+drop policy if exists adjustment_read on cutoff_adjustments;
+create policy adjustment_read on cutoff_adjustments for select to authenticated using(my_role() in ('staff','superadmin'));
+drop policy if exists adjustment_event_read on cutoff_adjustment_events;
+create policy adjustment_event_read on cutoff_adjustment_events for select to authenticated using(my_role() in ('staff','superadmin'));
+create or replace function create_cutoff_adjustment(p_id uuid,p_emp uuid,p_date date,p_minutes integer,p_amount numeric,p_reason text,p_reference text default '')
+returns uuid language plpgsql security definer set search_path=public as $$
+declare lid uuid;snapshot jsonb;
+begin
+ if my_role() is null or my_role() not in ('staff','superadmin') then raise exception 'Staff access required';end if;
+ if p_id is null or p_date is null or p_minutes is null or p_amount is null or p_amount::text in ('NaN','Infinity','-Infinity') or p_amount<>round(p_amount,2) or abs(p_minutes)>1440 or (p_minutes=0 and p_amount=0) or coalesce(length(btrim(p_reason)),0)<3 then raise exception 'Enter a nonzero correction and a reason; amounts use at most two decimals';end if;
+ perform pg_advisory_xact_lock(841562);
+ -- Client-generated identity makes a retry idempotent; a different payload is rejected.
+ if exists(select 1 from cutoff_adjustments where id=p_id) then
+  if exists(select 1 from cutoff_adjustments where id=p_id and submitted_by=auth.uid() and emp_id=p_emp and date=p_date and minutes_delta=p_minutes and amount_delta=p_amount and reason=btrim(p_reason) and reference=coalesce(p_reference,'')) then return p_id;end if;
+  raise exception 'Adjustment identity already used';
+ end if;
+ select id into lid from cutoff_locks where p_date between start_date and end_date;
+ if lid is null then raise exception 'Adjustments require a finalized date';end if;
+ if not exists(select 1 from employees where id=p_emp and (date_hired is null or date_hired<=p_date) and (date_end is null or date_end>=p_date)) then raise exception 'Date outside employment';end if;
+ snapshot=jsonb_build_object('attendance',(select to_jsonb(a) from attendance a where emp_id=p_emp and date=p_date),
+  'pay',(select to_jsonb(p) from attendance_pay p where emp_id=p_emp and date=p_date),
+  'entitlement',(select to_jsonb(s) from cutoff_snapshots s where emp_id=p_emp and date=p_date and lock_id=lid));
+ insert into cutoff_adjustments(id,emp_id,lock_id,date,minutes_delta,amount_delta,reason,reference,original,submitted_by)
+ values(p_id,p_emp,lid,p_date,p_minutes,p_amount,btrim(p_reason),coalesce(p_reference,''),snapshot,auth.uid());
+ insert into cutoff_adjustment_events(adjustment_id,action,actor_id,note) values(p_id,'submitted',auth.uid(),btrim(p_reason));
+ return p_id;
+end $$;
+create or replace function decide_cutoff_adjustment(p_id uuid,p_action text,p_note text)
+returns void language plpgsql security definer set search_path=public as $$
+declare r cutoff_adjustments;
+begin
+ if my_role() is distinct from 'superadmin' then raise exception 'Superadmin approval required';end if;
+ if p_action is null or p_action not in ('approve','reject') or coalesce(length(btrim(p_note)),0)<3 then raise exception 'Decision and reason required';end if;
+ perform pg_advisory_xact_lock(841562);
+ select * into strict r from cutoff_adjustments where id=p_id for update;
+ if r.status<>'pending' then raise exception 'Adjustment already decided; reload';end if;
+ if r.submitted_by=auth.uid() then raise exception 'A different superadmin must decide this adjustment';end if;
+ update cutoff_adjustments set status=case p_action when 'approve' then 'approved' else 'rejected' end,
+  decided_by=auth.uid(),decided_at=now(),decision_note=btrim(p_note) where id=p_id;
+ insert into cutoff_adjustment_events(adjustment_id,action,actor_id,note) values(p_id,p_action,auth.uid(),btrim(p_note));
+end $$;
+revoke all on function create_cutoff_adjustment(uuid,uuid,date,integer,numeric,text,text),decide_cutoff_adjustment(uuid,text,text) from public,anon;
+grant execute on function create_cutoff_adjustment(uuid,uuid,date,integer,numeric,text,text),decide_cutoff_adjustment(uuid,text,text) to authenticated;
+-- Decision trails are always retained, even when optional audit capture is disabled.
+commit;

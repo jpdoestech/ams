@@ -44,6 +44,6 @@ Reduced-motion preferences disable nonessential transitions. No remote fonts, ic
 
 `npm test` covers the attendance/database workflows and preference persistence, system-theme changes, cross-tab updates, invalid values, and restricted storage.
 
-`npm run test:ui` uses an installed Google Chrome (or `BROWSER_EXECUTABLE`) to check all screens, both themes, dialogs, mobile navigation, collapsible filters, icon clicks, reload persistence, chart keyboard interactions, and empty states. A full-screen sweep checks page and content overflow at 320, 375, 768, 844 (landscape), 1024, 1366, 1920, 2560, and 3440 pixels. It uses local demo data with external configuration/SDK requests intercepted and saves screenshots in ignored `test-results/ui/`.
+`npm run test:ui` uses an installed Google Chrome (or `BROWSER_EXECUTABLE`) to check all screens, attendance submission/independent approval, dated schedules, additive correction decisions, both themes, dialogs, mobile navigation, collapsible filters, icon clicks, reload persistence, chart keyboard interactions, and empty states. A full-screen sweep checks page and content overflow at 320, 375, 768, 844 (landscape), 1024, 1366, 1920, 2560, and 3440 pixels. It uses local demo data with external configuration/SDK requests intercepted and saves screenshots in ignored `test-results/ui/`.
 
 `npm run dev` serves a local frontend preview at `http://127.0.0.1:4173`. The local server exposes only frontend assets and public runtime configuration; use Vercel development or a deployment to exercise Google sync.

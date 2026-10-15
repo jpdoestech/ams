@@ -32,7 +32,7 @@ Click an employee row to open their information, or focus the row and press Ente
 
 **Pay profile:** enter daily rate, normal paid hours, holiday coverage, and the rate's effective-from date. Each change creates an immutable wage version. Use the actual historical effective date when initially entering an existing employee; the current-date default does not backfill historical wages. Saved worked days retain their original wage/rule snapshots until explicitly edited in an unlocked period.
 
-The Schedule editor accepts multiple duty blocks and break blocks. Late/undertime now handles the number of duty blocks actually present. Schedule edits affect future entries/previews; saved duty includes the schedule/location snapshot used when encoded. Full effective-dated schedule and assignment history is not yet modeled.
+The Schedule editor accepts multiple duty blocks and break blocks. Late/undertime now handles the number of duty blocks actually present. Schedule edits affect future entries/previews; saved duty includes the schedule/location snapshot used when encoded. Dated schedule and assignment versions are available through Schedule and Assignment history.
 
 ## Attendance matrix
 
@@ -44,7 +44,7 @@ The Attendance table's totals section shows only **LATE/UT min** and **PRESENT**
 
 Blank cells retain the old assumed-Present display, but **are unverified and excluded from worked-pay estimates**. N/A before hire/after separation is excluded from absence analysis. Rest days come from each employee's schedule.
 
-Duty preview shows classification, regular/OT/night hours, and Staff-visible component amounts. Breaks use configured break positions when the entered duration matches the schedule; otherwise the break is centered in the shift. Validate break placement for night shifts. Overrides need a reason and mark the entry reviewed. Bulk painting/import skips reviewed entries; a single explicit duty edit or a bulk Overwrite confirmation may replace a reviewed entry on an unlocked date.
+Duty preview shows classification, regular/OT/night hours, and Staff-visible component amounts. Breaks use configured break positions when the entered duration matches the schedule; otherwise the break is centered in the shift. Validate break placement for night shifts. Overrides need a reason and remain drafts until independently approved. Bulk painting/import skips reviewed entries; a single explicit duty edit or a bulk Overwrite confirmation may replace a reviewed entry on an unlocked date.
 
 The override dropdown shows the code and work-day classification, for example `RH | Regular Holiday Worked`. Enter the override reason in the field directly below it. **Save duty** saves immediately for single or bulk entries, without a confirmation pop-up; validation and reviewed-entry protection still apply. Other actions that require confirmation use an in-app modal with Cancel/Confirm controls; Escape cancels and returns focus to the current editor.
 
@@ -81,9 +81,9 @@ Exports support current filters and custom dates:
 
 ## Finalization and audit
 
-Superadmin **Lock cut-off** calls database finalization. It rejects incomplete ordinary-day duty, missing wages for worked days, and unresolved holiday eligibility, then locks the period and snapshots holiday entitlement. A shift crossing midnight into a finalized date is protected even if its start date is outside that cut-off.
+Superadmin **Lock cut-off** calls database finalization. It rejects unapproved recorded entries, incomplete ordinary-day duty, missing wages for worked days, and unresolved holiday eligibility, then locks the period and snapshots holiday entitlement. A shift crossing midnight into a finalized date is protected even if its start date is outside that cut-off.
 
-Finalized periods cannot be reopened through the app. Database-owner corrections must be recorded as separate audited adjustments; a dedicated adjustment UI is not included. **Audit logs** is a separate superadmin-only screen. It shows the latest 100 successful data changes attributed by the database, including old/new values, with a text filter. Failed transactions leave neither partial data nor misleading success audit entries.
+Finalized periods cannot be reopened through the app. Use the separate Adjustments screen for additive corrections with independent approval. **Audit logs** is a separate superadmin-only screen. It shows the latest 100 successful data changes attributed by the database, including old/new values, with a text filter. Failed transactions leave neither partial data nor misleading success audit entries.
 
 Superadmins can turn audit capture off or select Employees, Attendance, Schedules, Standards, Pay rules & wages, Users, Comments, and Cut-off locks. Settings apply to new changes; existing history is retained. Settings changes always leave an audit entry, including when capture is disabled. These controls are enforced by database triggers and row-level security.
 
@@ -96,7 +96,7 @@ Open **Analytics**, choose From/To dates (up to 366 days), optionally filter by 
 - **Manpower / workforce**: headcount at the start and end of the range, hires, separations, and recorded hours by assignment and department.
 - **Daily trend**: daily headcount, scheduled employees, recorded work, absence, leave, unverified days, and hours.
 
-Recorded attendance divides verified worked scheduled days by scheduled days. Rest days, non-working holidays, explicit day-off, and N/A entries are excluded from scheduled days. Blanks never count as recorded work. Overnight hours are allocated to their actual calendar dates. Employment dates bound headcount; an employee's separation date is their last applicable day. Assignment and department reflect current records rather than historical transfers. Analytics contains no wage/pay amounts and is available to viewers.
+Recorded attendance divides verified worked scheduled days by scheduled days. Rest days, non-working holidays, explicit day-off, and N/A entries are excluded from scheduled days. Blanks never count as recorded work. Overnight hours are allocated to their actual calendar dates. Employment dates bound headcount; an employee's separation date is their last applicable day. Assignment and department follow dated versions for workforce headcounts; recorded hours retain the assignment saved with duty. Employee-detail assignment labels reflect the end of the selected range. Legacy baselines cannot reconstruct transfers that were never recorded. Analytics contains no wage/pay amounts and is available to viewers.
 
 The dashboard shows cut-off attendance totals, assignment headcount, and recent daily attendance. The employee directory is available in Employees.
 
@@ -112,3 +112,21 @@ Blank entries remain blank. Scheduled rest days and dates outside employment may
 ## Google Sheets
 
 An active Staff/Superadmin can sync the selected attendance cut-off when configured. The server reads authorized Supabase data and replaces the four managed tabs in the configured Sheet stored in Drive. The app reports success only after Google confirms the write. This is a one-way reporting copy; edits in Sheets never overwrite Supabase.
+
+## Submit and review attendance
+
+Save duty immediately records a draft; an authorized duty-code override is not an approval. In Attendance, choose **Review**, select recorded entries, and **Submit selected**. The current employee filters and cut-off apply. Submitted records cannot be edited until a superadmin returns them with a reason. A superadmin who neither edited nor submitted the record can approve it. Workspaces therefore need an independent superadmin reviewer; a single administrator cannot approve their own entries.
+
+Approved records retain overwrite protection. An explicit authorized overwrite of an unlocked approved entry resets it to draft and requires another submission/approval. Review decisions advance revisions, so a stale save or decision requires reloading. The history icon shows actor, time, note, and the original attendance values for each decision. Decision records remain available even when optional audit capture is disabled. Finalization rejects unapproved recorded entries as well as the existing missing-duty/wage/holiday checks. Previously finalized periods remain protected.
+
+## Dated schedules and assignments
+
+Open an employee's **Schedule**, choose **Effective from**, set default punches/rest day and blocks, and enter a reason. Save creates an immutable version instead of replacing earlier dates. **Assignment history → New assignment version** also supports dated department, position, assignment location, and city transfers. Earlier dates retain their earlier version; future versions activate on their effective dates. Versions cannot affect finalized dates or submitted/approved attendance. Return affected attendance before correcting its schedule.
+
+Editing deployment fields in the employee form records a change effective today. Use dated versions for planned transfers. Migration baseline entries identify the setup when history tracking started; they do not establish unknown historical assignments. Existing duty/pay snapshots are not automatically recalculated when a version is added. Recheck and save unlocked draft duty explicitly if its schedule needs correction.
+
+## Finalized-period corrections
+
+Open **Adjustments**, select a date range, and choose **New correction**. Enter an employee, finalized date, signed minute/amount differences, reason, and supporting reference. A correction must have a nonzero difference. A different superadmin reviews it and provides an approval/rejection reason. Decisions are final; a subsequent correction is another ledger entry. The original duty, pay snapshot, entitlement, and lock are preserved.
+
+The applied range has its own pending count and approved totals. **Export ledger** includes FROM/TO, identities, references, submitter/decision metadata, and signed differences. Approved adjustments remain separate from Attendance, Summary pay, Analytics, and Google reporting totals; reconcile them in the actual payroll process. This feature does not run payroll or automatically pay an allowance.

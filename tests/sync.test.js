@@ -24,6 +24,7 @@ test('confirmed sync reads Supabase with caller JWT and writes atomic Google bat
   else if(url.includes('/profiles?'))body=[{active:true,role:'staff'}];
   else if(url.includes('/employees?'))body=[{id:'e1',emp_no:'E1',last_name:'=IMPORTXML("bad")'}];
   else if(url.includes('/field_defs?'))body=[];
+  else if(url.includes('/employee_assignment_versions?'))body=[];
   else if(url.includes('/attendance_pay?'))body=[];
   else if(url.includes('/attendance?'))body=[{emp_id:'e1',date:'2026-10-01',type:'ABSENT'}];
   else if(url.includes('oauth2.googleapis.com'))body={access_token:'google-token'};

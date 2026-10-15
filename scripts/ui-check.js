@@ -163,12 +163,29 @@ async function run(){
   const excelDownload=page.waitForEvent('download');await page.locator('[data-act="xlsx"]').click();const downloaded=await excelDownload;assert.match(downloaded.suggestedFilename(),/attendance_.*\.xlsx$/);await downloaded.saveAs('test-results/ui/attendance-export.xlsx');
   const exportedBook=new ExcelJS.Workbook();await exportedBook.xlsx.readFile('test-results/ui/attendance-export.xlsx');assert.equal(exportedBook.getWorksheet('Attendance').getCell('C1').value,'Employee Name');assert.equal(exportedBook.getWorksheet('Attendance').views[0].xSplit,3);assert.ok(exportedBook.getWorksheet('Transactions'));
   await page.waitForFunction(()=>!document.querySelector('#ov').classList.contains('on'));
+  // Real click paths for independent review and additive corrections.
+  await page.evaluate(async()=>{ROLE='staff';P={id:'browser-author',email:'author@demo'};const date=rng()[0];await saveAttendance([changeFor(E[0].id,date,dutyRow(E[0],date,{tin:'08:00',tout:'17:00',brk:60},'manual').row)]);await load();V='att';shell()});
+  await page.locator('[data-review-open]').click();await page.locator('[data-review-row]').first().check();
+  await page.locator('[data-review-action=submit]').click();await page.waitForFunction(()=>document.querySelector('#review-body')?.textContent.includes('submitted'));
+  await page.keyboard.press('Escape');await page.evaluate(()=>{ROLE='superadmin';P={id:'browser-reviewer',email:'reviewer@demo'};shell()});
+  await page.locator('[data-review-open]').click();await page.locator('[data-review-row]').first().check();await page.locator('[data-review-action=approve]').click();
+  await page.waitForFunction(()=>document.querySelector('#review-body')?.textContent.includes('approved'));await screenshot('attendance-review-approved');await page.keyboard.press('Escape');
+  await page.evaluate(()=>{ROLE='staff';P={id:'browser-author',email:'author@demo'};S.cutoff_locks.push({id:'browser-lock',start_date:'2026-09-01',end_date:'2026-09-01'});LOCKS=S.cutoff_locks;V='adjustments';shell()});
+  await page.locator('[data-adjustment-new]').click();await page.locator('#adjustment-date').fill('2026-09-01');await page.locator('#adjustment-minutes').fill('30');await page.locator('#adjustment-amount').fill('40.25');await page.locator('#adjustment-reason').fill('Approved supporting correction');await page.locator('[data-adjustment-save]').click();
+  await page.waitForFunction(()=>!document.querySelector('#ov').classList.contains('on'));
+  await page.locator('#adjustments-from').fill('2026-09-01');await page.locator('#adjustments-to').fill('2026-09-01');await page.locator('#adjustments-filter button[type=submit]').click();await page.waitForFunction(()=>document.querySelector('#adjustments-body').textContent.includes('pending'));
+  await page.evaluate(()=>{ROLE='superadmin';P={id:'browser-reviewer',email:'reviewer@demo'};shell()});
+  await page.locator('[data-adjustment-decide]').click();await page.locator('#adjustment-decision-note').fill('Verified supporting document');await page.locator('[data-adjustment-action=approve]').click();
+  await page.waitForFunction(()=>document.querySelector('#adjustments-body')?.textContent.includes('approved'));assert.match(await page.locator('#adjustments-totals').innerText(),/40.25/);await screenshot('adjustments-approved');
+  await page.evaluate(()=>{P={id:'demo',email:'demo@local'};V='emp';shell()});await page.locator('#eb [data-employee-row]').first().click();await page.locator('[data-act=eformschedule]').click();
+  await page.locator('#schedule-from').fill('2027-05-01');await page.locator('#schedule-reason').fill('Future schedule version');await page.locator('#schedule-in').fill('09:00');await page.locator('#schedule-out').fill('18:00');await page.locator('[data-act=ssave]').click();
+  await page.waitForFunction(()=>document.querySelector('#ov [data-act=eformschedule]'));await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>ASSIGNMENTS.some(v=>v.effective_from==='2027-05-01')),true);
   // Every workspace screen must fit the viewport; wide tables scroll within their containers.
   for(const [width,height] of [[320,740],[375,812],[768,1024],[844,390],[1024,768],[1366,768],[1920,1080],[2560,1440],[3440,1440]]){
    await page.setViewportSize({width,height});
-   for(const view of ['dash','emp','att','sum','std','usr','analytics','audit']){
+   for(const view of ['dash','emp','att','sum','std','usr','analytics','audit','adjustments']){
     await page.evaluate(view=>{V=view;if(view==='analytics')analyticsMode='overview';shell()},view);
-    const ready={dash:'.metric-grid',emp:'#emt',att:'#gt',sum:'#sbd',std:'[data-stab]',usr:'[data-u]',analytics:'.analytics-chart',audit:'#audit-enabled'}[view];await page.locator(ready).first().waitFor();
+    const ready={dash:'.metric-grid',emp:'#emt',att:'#gt',sum:'#sbd',std:'[data-stab]',usr:'[data-u]',analytics:'.analytics-chart',audit:'#audit-enabled',adjustments:'#adjustments-body'}[view];await page.locator(ready).first().waitFor();
     const overflow=await page.evaluate(()=>{const main=document.querySelector('#mn'),right=main.getBoundingClientRect().right;return{page:document.documentElement.scrollWidth>innerWidth,main:main.scrollWidth>main.clientWidth+1,controls:[...main.children].filter(el=>!el.hidden&&el.getBoundingClientRect().right>right+2).map(el=>el.id||el.className)}});
     assert.deepEqual(overflow,{page:false,main:false,controls:[]},`Responsive screen: ${view} at ${width}x${height}`);
     const contentWidth=await page.locator('#mn').evaluate(el=>el.getBoundingClientRect().width);
@@ -184,6 +201,9 @@ async function run(){
      await screenshot('schedule-responsive-'+width);await page.keyboard.press('Escape');
     }
     if(view==='analytics'&&[375,1366].includes(width))await screenshot('overview-responsive-'+width);
+    if(view==='att'&&[320,844,3440].includes(width)){
+     await page.locator('[data-review-open]').click();const box=await page.locator('.md').boundingBox();assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=width+1&&box.y+box.height<=height+1,'Review dialog fits viewport');await screenshot('review-responsive-'+width);await page.keyboard.press('Escape');
+    }
     if(view==='std')for(const tab of ['sto','sup','hol','pay']){await page.locator('[data-stab="'+tab+'"]').click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Standards '+tab+' at '+width)}
    }
   }

@@ -1,4 +1,5 @@
 const {createSign}=require('node:crypto');
+const {supabaseConfig}=require('../lib/supabase-config');
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
 async function jsonFetch(url,options={}){
   const response=await fetch(url,{...options,signal:AbortSignal.timeout(20000)});
@@ -12,10 +13,10 @@ async function googleToken(){
   return(await jsonFetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:jwt}).toString()})).access_token;
 }
 async function listTable(table,token,params=''){
-  const all=[],url=process.env.SUPABASE_URL.replace(/\/$/,'');
+  const all=[],url=supabaseConfig().URL.replace(/\/$/,'');
   const keys=({attendance:'emp_id,date',attendance_pay:'emp_id,date',employee_pay:'emp_id'})[table]||'id';
   for(let offset=0;;offset+=1000){
-    const data=await jsonFetch(`${url}/rest/v1/${table}?select=*&order=${keys}&offset=${offset}&limit=1000${params}`,{headers:{apikey:process.env.SUPABASE_ANON_KEY,Authorization:'Bearer '+token}});
+    const data=await jsonFetch(`${url}/rest/v1/${table}?select=*&order=${keys}&offset=${offset}&limit=1000${params}`,{headers:{apikey:supabaseConfig().KEY,Authorization:'Bearer '+token}});
     all.push(...data);if(data.length<1000)return all;
   }
 }
@@ -27,20 +28,22 @@ module.exports=async function sync(req,res){
   const match=/^Bearer (\S+)$/.exec(req.headers.authorization||'');if(!match)return res.status(401).json({error:'Sign in required'});
   const {start,end}=typeof req.body==='object'&&req.body?req.body:{};
   if(!validDate(start)||!validDate(end)||start>end||Date.parse(end)-Date.parse(start)>32*86400000)return res.status(400).json({error:'Select a valid attendance period of at most 32 days'});
-  if(!['SUPABASE_URL','SUPABASE_ANON_KEY','GOOGLE_SERVICE_ACCOUNT_EMAIL','GOOGLE_PRIVATE_KEY','GOOGLE_SHEET_ID'].every(key=>process.env[key]))return res.status(503).json({error:'Sheets sync is not configured'});
+  if(!supabaseConfig().URL||!supabaseConfig().KEY||!['GOOGLE_SERVICE_ACCOUNT_EMAIL','GOOGLE_PRIVATE_KEY','GOOGLE_SHEET_ID'].every(key=>process.env[key]))return res.status(503).json({error:'Sheets sync is not configured'});
   try{
-    const headers={apikey:process.env.SUPABASE_ANON_KEY,Authorization:'Bearer '+match[1]},base=process.env.SUPABASE_URL.replace(/\/$/,'');
+    const headers={apikey:supabaseConfig().KEY,Authorization:'Bearer '+match[1]},base=supabaseConfig().URL.replace(/\/$/,'');
     // Validate the JWT with Supabase Auth, then enforce the caller's active role.
     const authResponse=await fetch(base+'/auth/v1/user',{headers,signal:AbortSignal.timeout(10000)});
     if(!authResponse.ok)return res.status(401).json({error:'Session expired; sign in again'});
     const user=await authResponse.json();
     const profiles=await jsonFetch(`${base}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,active`,{headers});
     if(!profiles[0]?.active||!['staff','superadmin'].includes(profiles[0].role))return res.status(403).json({error:'Active Staff or Superadmin access required'});
-    const [employees,attendance,fields,pays]=await Promise.all([
-      listTable('employees',match[1]),listTable('attendance',match[1],`&date=gte.${start}&date=lte.${end}`),listTable('field_defs',match[1]),listTable('attendance_pay',match[1],`&date=gte.${start}&date=lte.${end}`)
+    const [employeeRows,attendance,fields,pays,versions]=await Promise.all([
+      listTable('employees',match[1]),listTable('attendance',match[1],`&date=gte.${start}&date=lte.${end}`),listTable('field_defs',match[1]),listTable('attendance_pay',match[1],`&date=gte.${start}&date=lte.${end}`),listTable('employee_assignment_versions',match[1])
     ]);
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const employees=employeeRows.map(e=>{const v=versions.filter(v=>v.emp_id===e.id&&v.effective_from<=today).sort((a,b)=>b.effective_from.localeCompare(a.effective_from)||Number(b.version_no)-Number(a.version_no))[0];return{...e,...(v?.snapshot.employee||{})}});
     const employeeColumns=['emp_no','last_name','first_name','middle_name','birth_date','sex','contact','address','position','department','site','location','status','date_hired','date_end','time_in','time_out','rest_day',...fields.map(f=>f.fkey)];
-    const attendanceColumns=['emp_no','date','type','late','ut','time_in','time_out','break_min','duty_code','reg_min','ot_min','nsd_min','verified','reviewed','source','revision','segments'];
+    const attendanceColumns=['emp_no','date','type','late','ut','time_in','time_out','break_min','duty_code','reg_min','ot_min','nsd_min','verified','reviewed','review_status','submitted_by','submitted_at','decided_by','decided_at','review_note','source','revision','segments'];
     const employeeMap=new Map(employees.map(e=>[e.id,e]));
     const tabs={Employees:[employeeColumns,...employees.map(e=>employeeColumns.map(k=>k.startsWith('cf_')?e.custom?.[k]:e[k]))],
       Attendance:[attendanceColumns,...attendance.map(r=>attendanceColumns.map(k=>k==='emp_no'?employeeMap.get(r.emp_id)?.emp_no:r[k]))],

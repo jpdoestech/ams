@@ -1,0 +1,67 @@
+const {test,before,after}=require('node:test');
+const assert=require('node:assert/strict');
+const {database,asUser,ids}=require('./helpers');
+let db;
+before(async()=>db=await database());after(async()=>db?.close());
+const row=async date=>(await db.query('select * from attendance where emp_id=$1 and date=$2',[ids.emp,date])).rows[0];
+const change=async(date,values)=>({emp_id:ids.emp,date,expected_revision:(await row(date))?.revision??null,row:values});
+const duty={type:'PRESENT',time_in:'08:00',time_out:'17:00',break_min:60,override_code:'RH',override_reason:'Authorized classification'};
+const save=async(user,date,values=duty,overwrite=false)=>asUser(db,user,async()=>db.query('select save_attendance_batch($1,$2)',[JSON.stringify([await change(date,values)]),overwrite]));
+const review=async(user,date,action,note='')=>asUser(db,user,async()=>db.query('select review_attendance($1,$2,$3)',[JSON.stringify([await row(date)]),action,note]));
+
+test('overrides remain drafts; submission, independent approval and revisions are server enforced',async()=>{
+ await save(ids.staff,'2027-02-01');let r=await row('2027-02-01');assert.equal(r.review_status,'draft');assert.equal(r.reviewed,false);assert.equal(r.edited_by,ids.staff);
+ const stale={...r};await review(ids.staff,r.date,'submit');r=await row(r.date);assert.equal(r.review_status,'submitted');assert.notEqual(r.revision,stale.revision);
+ await assert.rejects(save(ids.staff,r.date,duty,true),/returned before editing/);
+ await assert.rejects(asUser(db,ids.admin,()=>db.query("select review_attendance($1,'approve','')",[JSON.stringify([stale])])),/changed/);
+ await assert.rejects(review(ids.staff,r.date,'approve'),/Superadmin/);
+ await assert.rejects(review(ids.admin,r.date,'return',''),/reason/);
+ await review(ids.admin,r.date,'return','Please check punches');assert.equal((await row(r.date)).review_status,'returned');
+ await save(ids.staff,r.date);await review(ids.staff,r.date,'submit');await review(ids.admin,r.date,'approve');r=await row(r.date);assert.equal(r.review_status,'approved');assert.equal(r.reviewed,true);assert.equal(r.decided_by,ids.admin);
+ await assert.rejects(save(ids.staff,r.date),/Reviewed/);
+ await save(ids.admin,'2027-02-02');await review(ids.admin,'2027-02-02','submit');await assert.rejects(review(ids.admin,'2027-02-02','approve'),/different superadmin/);
+ await assert.rejects(asUser(db,ids.viewer,()=>db.exec("select review_attendance('[]','submit','')")),/Staff/);
+ const events=(await asUser(db,ids.staff,()=>db.query('select * from attendance_review_events where date=$1',[r.date]))).rows;assert.equal(events.length,4);
+ await assert.rejects(asUser(db,ids.staff,()=>db.exec('delete from attendance_review_events')),/permission denied/);
+});
+test('finalization requires approval and approved edits return to draft without losing the decision trail',async()=>{
+ await save(ids.staff,'2027-02-03');await assert.rejects(asUser(db,ids.admin,()=>db.exec("select finalize_cutoff('2027-02-03','2027-02-03')")),/Unapproved/);
+ await review(ids.staff,'2027-02-03','submit');await review(ids.admin,'2027-02-03','approve');
+ await save(ids.staff,'2027-02-03',{...duty,time_out:'18:00'},true);assert.equal((await row('2027-02-03')).review_status,'draft');
+ await review(ids.staff,'2027-02-03','submit');await review(ids.admin,'2027-02-03','approve');
+ await asUser(db,ids.admin,()=>db.exec("select finalize_cutoff('2027-02-01','2027-02-01')"));
+ await assert.rejects(save(ids.staff,'2027-02-01',duty,true),/locked/);
+});
+test('dated assignments drive historical classification, breaks and snapshots; stale/protected versions fail',async()=>{
+ const latest=async()=>Number((await db.query('select max(version_no) as n from employee_assignment_versions where emp_id=$1',[ids.emp])).rows[0].n);
+ const expected=await latest(),assignment={time_in:'09:00',time_out:'18:00',rest_day:'Tue',site:'Future site',location:'Davao City',department:null,position:null};
+ await asUser(db,ids.staff,async()=>db.query('select save_assignment_version($1,$2,$3,$4,$5,$6)',[ids.emp,'2027-05-01',assignment,[], 'Transfer to future site',expected]));
+ assert.equal((await db.query("select (employee_at($1,'2027-04-30')).site as site",[ids.emp])).rows[0].site,null);
+ assert.equal((await db.query("select (employee_at($1,'2027-05-01')).site as site",[ids.emp])).rows[0].site,'Future site');
+ assert.equal((await db.query("select day_code($1,'2027-05-04') as code",[ids.emp])).rows[0].code,'RD');
+ assert.equal((await db.query("select day_code($1,'2027-04-27') as code",[ids.emp])).rows[0].code,'OD');
+ await save(ids.staff,'2027-05-03',{type:'PRESENT',time_in:'09:00',time_out:'18:00',break_min:60});const r=await row('2027-05-03');assert.equal(r.late,0);assert.equal(r.schedule_snapshot.site,'Future site');assert.equal(r.schedule_snapshot.time_in,'09:00');
+ await assert.rejects(asUser(db,ids.staff,async()=>db.query('select save_assignment_version($1,$2,$3,$4,$5,$6)',[ids.emp,'2027-06-01',assignment,[],'Stale edit',expected])),/changed/);
+ await assert.rejects(asUser(db,ids.staff,async()=>db.query('select save_assignment_version($1,$2,$3,$4,$5,$6)',[ids.emp,'2027-01-01',assignment,[],'Closed edit',await latest()])),/finalized/);
+ await assert.rejects(asUser(db,ids.viewer,async()=>db.query('select save_assignment_version($1,$2,$3,$4,$5,$6)',[ids.emp,'2027-06-01',assignment,[],'Viewer edit',await latest()])),/Staff/);
+ await assert.rejects(asUser(db,ids.staff,()=>db.exec('delete from employee_assignment_versions')),/permission denied/);
+});
+test('finalized adjustments are additive, idempotent, independently approved and retain immutable evidence',async()=>{
+ const original=(await db.query("select a.*,p.comps from attendance a join attendance_pay p using(emp_id,date) where date='2027-02-01'")).rows;
+ const id='30000000-0000-4000-8000-000000000001',args=[id,ids.emp,'2027-02-01',30,45.50,'Missing approved allowance','Reference 123'];
+ const create=(user,values=args)=>asUser(db,user,()=>db.query('select create_cutoff_adjustment($1,$2,$3,$4,$5,$6,$7)',values));
+ await create(ids.staff);await create(ids.staff);assert.equal((await db.query('select count(*)::int as n from cutoff_adjustments')).rows[0].n,1);
+ await assert.rejects(create(ids.staff,[...args.slice(0,4),99,...args.slice(5)]),/identity/);
+ await assert.rejects(create(ids.viewer),/Staff/);
+ await assert.rejects(create(ids.staff,['30000000-0000-4000-8000-000000000002',ids.emp,'2027-02-04',30,12,'Not finalized','']),/finalized/);
+ await asUser(db,ids.admin,()=>db.exec('update audit_settings set enabled=false where id=1'));
+ await asUser(db,ids.admin,()=>db.query("select decide_cutoff_adjustment($1,'approve','Verified supporting record')",[id]));
+ await assert.rejects(asUser(db,ids.admin,()=>db.query("select decide_cutoff_adjustment($1,'approve','Duplicate decision')",[id])),/already decided/);
+ const r=(await db.query('select * from cutoff_adjustments where id=$1',[id])).rows[0];assert.equal(r.status,'approved');assert.equal(+r.amount_delta,45.5);assert.equal(r.original.attendance.date,'2027-02-01');
+ assert.equal((await db.query('select count(*)::int as n from cutoff_adjustment_events where adjustment_id=$1',[id])).rows[0].n,2);
+ assert.deepEqual((await db.query("select a.*,p.comps from attendance a join attendance_pay p using(emp_id,date) where date='2027-02-01'")).rows,original);
+ assert.equal((await asUser(db,ids.viewer,()=>db.query('select * from cutoff_adjustments'))).rows.length,0);
+ await assert.rejects(asUser(db,ids.admin,()=>db.exec("update cutoff_adjustments set amount_delta=999")),/permission denied/);
+ const selfArgs=['30000000-0000-4000-8000-000000000003',...args.slice(1)];await create(ids.admin,selfArgs);
+ await assert.rejects(asUser(db,ids.admin,()=>db.query("select decide_cutoff_adjustment($1,'approve','My own request')",[selfArgs[0]])),/different superadmin/);
+});

@@ -26,7 +26,7 @@ async function browser(){
  const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://ams.test',runScripts:'outside-only'});
  dom.window.confirm=()=>true;dom.window.alert=()=>{};
  dom.window.structuredClone=structuredClone;
- for(const file of ['theme.js','layout.js','duty-engine.js','ui.js','confirm-dialog.js','data-tools.js','attendance-xlsx.js','analytics.js','analytics-charts.js','ui-workflows.js','workspace-features.js','app.js'])new vm.Script(fs.readFileSync('assets/'+file,'utf8')).runInContext(dom.getInternalVMContext());
+ for(const file of ['theme.js','layout.js','duty-engine.js','ui.js','confirm-dialog.js','data-tools.js','attendance-xlsx.js','analytics.js','analytics-charts.js','ui-workflows.js','workspace-features.js','operations.js','supabase-client.js','app.js'])new vm.Script(fs.readFileSync('assets/'+file,'utf8')).runInContext(dom.getInternalVMContext());
  dom.window.eval=code=>new vm.Script(code).runInContext(dom.getInternalVMContext());
  // Global lexical declarations remain visible to later script evaluations.
  await new Promise(resolve=>setTimeout(resolve,50));
