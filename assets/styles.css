@@ -181,7 +181,10 @@ main{padding:12px 14px}.page-heading{display:none}.dashboard-actions{display:fle
 @media(max-width:760px){.chart-axis text{font-size:19px}}
 .bootstrap-error{grid-column:1/-1;max-width:640px;margin:40px auto;padding:18px;color:var(--danger);background:var(--sf);border:1px solid var(--bd);border-radius:6px}
 /* Stable modal chrome: only the content area scrolls. */
-.md{display:flex;flex-direction:column;width:min(1080px,100%);height:min(86dvh,860px);max-height:calc(100dvh - 32px);overflow:hidden;padding:0;border-radius:8px}
+.md{display:flex;flex-direction:column;width:min(680px,100%);height:auto;max-height:min(88dvh,800px);overflow:hidden;padding:0;border-radius:8px}
+.md:has(.modal-body table){width:min(960px,100%)}
+.md:has(.employee-form-header){width:min(880px,100%);height:min(86dvh,760px)}
+.md.modal-schedule{height:min(82dvh,700px)}
 .modal-header,.modal-footer{flex:none;min-width:0;background:var(--sf)}
 .modal-header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--bd)}
 .modal-header>h3,.modal-header h3{font-size:18px;line-height:1.3;margin:0!important;padding:0;letter-spacing:-.3px}
@@ -190,19 +193,21 @@ main{padding:12px 14px}.page-heading{display:none}.dashboard-actions{display:fle
 .md>.modal-body{flex:1;min-height:0;min-width:0;overflow:auto;padding:16px 20px;scrollbar-width:thin;overscroll-behavior:contain}
 .md>.modal-footer{border-top:1px solid var(--bd);padding:10px 20px;min-height:42px}
 .modal-footer>div{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:7px;margin:0!important;padding:0!important;border:0!important;text-align:right}
-.modal-footer .btn{min-height:32px}.md .fg{grid-template-columns:repeat(3,minmax(0,1fr))}
+.modal-footer .btn{min-height:32px}.md .fg{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px}
+.md .fg label{gap:4px;min-width:0}.md .fg input,.md .fg select{padding:6px 9px;min-height:34px}
+.md:has(.employee-form-header) .modal-body>.card{padding:10px 12px}
 .md #dm>.fg{padding:10px 0 2px}.md #dm>div:last-child{border:0;margin-top:10px;padding-top:0}
 .modal-schedule>.modal-body{display:flex;flex-direction:column;gap:7px}.modal-schedule .modal-body>.wrap{flex:1!important;max-height:none!important;min-height:130px}.modal-schedule #schs{flex:none;padding:10px 12px}.modal-schedule .modal-body>.row{flex:none}.modal-schedule #sch input,.modal-schedule #sch select{width:100%;min-width:100px}.modal-schedule #sch td{padding:5px 8px}
 .confirm-dialog{display:flex;flex-direction:column;max-height:calc(100dvh - 32px);overflow:hidden;padding:0;border-radius:8px}.confirm-header{padding:20px 23px 12px;flex:none}.confirm-header h3{font-size:19px;margin-bottom:0}.confirm-body{overflow:auto;min-height:0;padding:0 23px 16px}.confirm-actions{flex:none;border-top:1px solid var(--bd);margin:0;padding:12px 23px;flex-wrap:wrap}
 .filter-indicator{display:flex;gap:5px 8px;align-items:center;flex-wrap:wrap;flex:none;font-size:11px;margin:0 0 8px;color:var(--pr-text)}.filter-indicator[hidden],.list-filter-status[hidden],.employee-lookup-editor[hidden]{display:none}.filter-indicator strong{font-size:10px;font-weight:650}.filter-indicator>span{padding:2px 7px;border:1px solid var(--bd);border-radius:4px;background:var(--pr-soft);overflow-wrap:anywhere;max-width:100%}.is-filtered{border-color:var(--pr)!important;box-shadow:inset 0 0 0 1px var(--pr)}.list-filter-status{display:block;font-size:11px;color:var(--pr-text);margin:3px 0 6px}
 .lookup-control{display:flex;align-items:center;gap:6px;min-width:0}.lookup-control select{flex:1;min-width:0}.lookup-control .icon-button{flex:none;width:30px;min-width:30px;min-height:30px;height:30px;padding:5px}.employee-lookup-editor{border:1px solid var(--pr);border-radius:6px;background:var(--pr-soft);padding:10px;margin:0 0 12px}.quick-lookup-title{display:flex;gap:6px;align-items:center;font-weight:600;font-size:12px;margin-bottom:7px}.employee-lookup-editor .row{align-items:flex-end;margin:0}.employee-lookup-editor label{display:flex;flex-direction:column;gap:4px;font-size:11px;flex:1;min-width:150px}.employee-lookup-editor input{width:100%}
-@media(max-width:760px){.ov{padding:8px}.md{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);border-radius:7px}.modal-header{padding:12px 14px;gap:8px}.md>.modal-body{padding:12px 14px}.md>.modal-footer{padding:9px 14px}.md .fg{grid-template-columns:repeat(2,minmax(0,1fr))}.modal-header .employee-form-header{gap:8px}.confirm-dialog{padding:0}.modal-footer .btn{min-height:34px}.filter-indicator{font-size:10px}}
+@media(max-width:760px){.ov{padding:8px}.md{max-height:calc(100dvh - 16px);border-radius:7px}.md:has(.employee-form-header),.md.modal-schedule{height:min(90dvh,760px)}.modal-header{padding:12px 14px;gap:8px}.md>.modal-body{padding:12px 14px}.md>.modal-footer{padding:9px 14px}.md .fg{grid-template-columns:repeat(2,minmax(0,1fr))}.md .fg input,.md .fg select{min-height:40px}.modal-header .employee-form-header{gap:8px}.confirm-dialog{padding:0}.modal-footer .btn{min-height:34px}.filter-indicator{font-size:10px}}
 @media(max-width:540px){.md .fg{grid-template-columns:1fr}.modal-header h3{font-size:16px}.employee-form-header .btn{font-size:11px}.modal-schedule .modal-body>.wrap{min-height:100px}.employee-lookup-editor .row{gap:6px}}
 /* Keep data layouts useful on large monitors without stretching charts and forms. */
 main{width:100%;max-width:2200px;align-self:center}
 main[data-view="dash"]{max-width:1600px}
 main[data-view="analytics"]{max-width:1800px}
-@media(max-height:540px){.md{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px)}.ov{padding:8px}.modal-header{padding-block:8px}.md>.modal-footer{padding-block:7px}}
+@media(max-height:540px){.md{max-height:calc(100dvh - 16px)}.ov{padding:8px}.modal-header{padding-block:8px}.md>.modal-footer{padding-block:7px}}
 .operation-note{display:flex;flex-direction:column;gap:5px;margin-top:10px;font-size:12px}.operation-note textarea{width:100%}
 #toast{pointer-events:none}
 .workspace[aria-busy="true"] .connection-badge::after{content:" · Loading…"}.workspace[aria-busy="true"]{cursor:progress}
