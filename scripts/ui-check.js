@@ -214,6 +214,13 @@ async function run(){
   await page.setViewportSize({width:1366,height:768});await page.evaluate(()=>{V='analytics';analyticsMode='overview';shell()});await page.locator('.analytics-chart').first().waitFor();
   await page.selectOption('select[data-theme-preference]','light');await screenshot('analytics-overview-light');
   await page.locator('#analytics-search').fill('does-not-exist');await page.locator('#analytics-form button[type=submit]').click();await page.locator('.overview-empty').waitFor();assert.equal(await page.locator('#analytics-data').isVisible(),false);
+  const scale=await page.evaluate(async()=>{
+   const sample=E[0];S.employees=Array.from({length:500},(_,i)=>({...sample,id:crypto.randomUUID(),emp_no:'SCALE-'+String(i).padStart(3,'0'),last_name:'Synthetic '+i,first_name:'Employee'}));
+   S.employee_assignment_versions=[];S.attendance_comments=[];S.cutoff_locks=[];S.cutoff_snapshot_view=[];S.attendance_pay=[];S.employee_pay=[];S.wage_history=[];
+   S.attendance=S.employees.flatMap(e=>Array.from({length:15},(_,i)=>({emp_id:e.id,date:'2027-08-'+String(i+1).padStart(2,'0'),type:'ABSENT',revision:i+1})));
+   cut={m:'2027-08',h:1};flt={q:'',site:'',department:'',position:''};await load();V='att';const start=performance.now();shell();return{fixtureEmployees:E.length,fixtureAttendance:S.attendance.length,renderMs:Math.round(performance.now()-start),renderedRows:document.querySelectorAll('#gt tbody tr').length};
+  });
+  assert.equal(scale.fixtureEmployees,500);assert.equal(scale.fixtureAttendance,7500);assert.equal(scale.renderedRows,50);await page.locator('#fq').fill('SCALE-499');await page.waitForFunction(()=>document.querySelectorAll('#gt tbody tr').length===1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);console.log('Synthetic browser fixture: '+JSON.stringify(scale));
   await page.evaluate(()=>login());await page.waitForSelector('#le');await screenshot('login-dark');
   assert.equal(await page.locator('select[data-theme-preference]').isVisible(),true);
   assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and nine responsive viewport sizes.');

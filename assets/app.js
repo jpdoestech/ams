@@ -46,9 +46,9 @@ function dl(name,rows){const a=document.createElement("a");a.href=URL.createObje
 function pick(cb){const f=$("fi");f.value="";f.onchange=()=>f.files[0]&&f.files[0].text().then(t=>guard(()=>cb(parseCSV(t))));f.click()}
 /* ---- views ---- */
 const sum=(id,ds)=>{const e=E.find(x=>x.id==id)||{};let a=0,o=0,l=0,w=0,m=0,na=0;ds.forEach(d=>{const v=A[id+"|"+d];if(isNA(e,d)){na++;return}if(!v){if(isRD(e,d))o++;return}if(v.type=="N/A"){na++;return}if(v.type=="ABSENT")a++;if(v.type=="DAY-OFF")o++;if(v.type=="LEAVE"||v.type=="LEAVE-U")l++;if(v.type=="AWOL/P")w++;if(v.type=="LATE/UT")m+=(v.late||0)+(v.ut||0)});return{a,o,l,w,m,na,p:ds.length-na-a-o-l-w}};
-const eligible=(e,a,b,rows=Object.values(A))=>isAct(e)||CLOSED.some(q=>q.emp_id==e.id&&q.date>=a&&q.date<=b)||rows.some(r=>r.emp_id==e.id&&r.date>=a&&r.date<=b)||!!e.date_end&&e.date_end>=a&&(!e.date_hired||e.date_hired<=b);
+const eligible=(e,a,b,rows)=>isAct(e)||CLOSED.some(q=>q.emp_id==e.id&&q.date>=a&&q.date<=b)||(rows||Object.values(A)).some(r=>r.emp_id==e.id&&r.date>=a&&r.date<=b)||!!e.date_end&&e.date_end>=a&&(!e.date_hired||e.date_hired<=b);
 const matchesFilters=e=>(!flt.site||e.site==flt.site)&&(!flt.department||e.department==flt.department)&&(!flt.position||e.position==flt.position)&&(!flt.q||(e.emp_no+" "+e.last_name+" "+e.first_name+" "+e.middle_name).toLowerCase().includes(flt.q.toLowerCase()));
-const fa=()=>E.filter(e=>{const p=V=="sum"&&SP.length?SP:rng();return eligible(e,p[0],p[1],V=="sum"?SD:Object.values(A))});
+const fa=()=>{const p=V=="sum"&&SP.length?SP:rng(),rows=V=="sum"?SD:Object.values(A),historical=new Set([...rows,...CLOSED].filter(r=>r.date>=p[0]&&r.date<=p[1]).map(r=>r.emp_id));return E.filter(e=>isAct(e)||historical.has(e.id)||!!e.date_end&&e.date_end>=p[0]&&(!e.date_hired||e.date_hired<=p[1]))};
 const fe=()=>fa().filter(e=>(!flt.site||e.site==flt.site)&&(!flt.department||e.department==flt.department)&&(!flt.position||e.position==flt.position)&&(!flt.q||(e.emp_no+" "+e.last_name+" "+e.first_name+" "+e.middle_name).toLowerCase().includes(flt.q.toLowerCase())));
 const fsel=(id,k,lbl)=>`<select id="${id}"><option value="">${lbl}</option>${[...new Set(E.map(e=>e[k]).filter(Boolean))].sort().map(v=>`<option ${v==flt[k]?"selected":""}>${esc(v)}</option>`).join("")}</select>`;
 const svg=name=>AMSUI.icon(name);
@@ -181,7 +181,7 @@ const sumCSV=(R,from,to)=>[["FROM","TO","emp_no","name","assignment_location","d
 function exportM(){modal(`<h3 style="margin:0 0 10px">Export attendance</h3><div class="row">${picker("x")}</div><label style="display:block;margin:8px 0"><input type="checkbox" id="xf" checked> Only employees matching the current filters</label><div class="mu" style="margin-bottom:10px">Excel exports the employee-by-date grid with status dropdowns and a Transactions sheet. Excel edits do not update AMS. Transactions preserve actual punches and status. Detailed DTR includes dated components and rate snapshots. Summary = totals per employee.</div><div class="row export-actions" style="justify-content:flex-end;margin-bottom:0"><button class="btn" data-act="cm">Cancel</button> <button class="btn" data-act="xsum">Summary CSV</button> <button class="btn" data-act="xdtr">Detailed DTR CSV</button> <button class="btn" data-act="xdet">Transactions CSV</button> <button class="btn p" data-act="xlsx">${svg("download")}Excel (.xlsx)</button></div>`);ptog("x")}
 let SMODE="cnt",SAP=[],ASM=false,summaryRequest=0;
 function sumv(){$("mn").innerHTML=`<span class="mu" id="sper"></span><div class="row">${picker("s")}<button class="btn p" data-act="sgo">Apply</button><button class="btn" data-act="sexp">Export</button></div><div class="row"><button class="pill ${SMODE=="cnt"?"on":""}" data-smode="cnt">Attendance counts</button><button class="pill ${SMODE=="duty"?"on":""}" data-smode="duty">Duty &amp; pay (DOLE)</button><span id="asmw" style="display:none"><label style="font-size:12px"><input type="checkbox" id="asm" ${ASM?"checked":""}> Include scheduled hours for blank present days (estimate)</label></span></div><div class="row">${filterBar()}</div><div class="grid4" id="stot" style="grid-template-columns:repeat(auto-fit,minmax(105px,1fr));margin-bottom:10px"></div><div id="sleg"></div><div class="wrap"><table><thead id="shd"></thead><tbody id="sbd"></tbody></table></div><div id="pgb"></div>`;bindF("sum");ptog("s");return sgo()}
-async function sgo(){const p=pread("s"),target=$("sper"),request=++summaryRequest;const result=await Promise.all([API.list("attendance",[addD(p[0],-366),p[1]]),W()?API.list("attendance_pay",[addD(p[0],-1),p[1]]):Promise.resolve([])]);if(request!==summaryRequest||target!==$("sper")||!target?.isConnected)return;[SD,SAP]=result;SP=p;target.textContent="Applied range: "+p[0]+" — "+p[1];srows()}
+async function sgo(){const p=pread("s"),target=$("sper"),request=++summaryRequest;const result=await Promise.all([API.list("attendance",[addD(p[0],-366),p[1]]),W()?API.list("attendance_pay",[addD(p[0],-1),p[1]]):Promise.resolve([]),API.list("cutoff_snapshot_view",p)]);if(request!==summaryRequest||target!==$("sper")||!target?.isConnected)return;[SD,SAP,CLOSED]=result;SP=p;target.textContent="Applied range: "+p[0]+" — "+p[1];srows()}
 function srows(){const L=fe();$("asmw").style.display=SMODE=="duty"?"":"none";document.querySelectorAll("[data-smode]").forEach(b=>b.classList.toggle("on",b.dataset.smode==SMODE));
  if(SMODE=="cnt"){const R=agg(L,SD,SP[0],SP[1]),T={};SCOL.forEach(([,k])=>T[k]=R.reduce((t,x)=>t+(k=="n"?0:x[k]),0));
   $("sleg").innerHTML="";$("stot").innerHTML=`<div class="card"><span class="mu">Employees</span><b>${R.length}</b></div>`+SCOL.filter(([,k])=>k!="n").map(([l,k])=>`<div class="card"><span class="mu">${l}</span><b>${T[k]}</b></div>`).join("");
@@ -262,15 +262,15 @@ function nc(n,c){n=n.trim();c=(c||"").trim();if(!c&&n.includes("|")){const q=n.s
 const dup=(arr,code,id)=>!!code&&arr.some(x=>x.id!=id&&(x.code||"").toLowerCase()==code.toLowerCase());
 const useN=x=>x.kind=="region"?ST.filter(s=>s.region==x.value).length:x.kind=="city"?ST.filter(s=>s.city==x.value).length+E.filter(e=>e.location==x.value).length:E.filter(e=>e[LKF[x.kind]]==x.value).length;
 const useTxt=x=>x.kind=="region"?useN(x)+" store(s)":useN(x)+" record(s)";
-const ruleFor=(code,d)=>RL.filter(q=>q.code==code&&q.active!==false&&q.effective_from<=d).sort((a,b)=>b.effective_from.localeCompare(a.effective_from))[0];
-function holsOn(e,d){const seen=new Set(),location=employeeAt(e,d).location;return H.filter(h=>h.date==d&&(h.location=="ALL"||h.location==location)).filter(h=>{const k=h.kind+"|"+(h.name||"").toLowerCase();if(seen.has(k))return false;seen.add(k);return true})}
+const ruleFor=(code,d)=>versionAt("rules",RL,"code",code,d,true);
+function holsOn(e,d){const seen=new Set(),location=employeeAt(e,d).location;return holidaysForDate(d).filter(h=>h.location=="ALL"||h.location==location).filter(h=>{const k=h.kind+"|"+(h.name||"").toLowerCase();if(seen.has(k))return false;seen.add(k);return true})}
 function dayCode(e,d){const hs=holsOn(e,d),rg=hs.filter(h=>h.kind=="LEGAL").length,sp=hs.filter(h=>h.kind=="SPECIAL").length,sw=hs.some(h=>h.kind=="SPECIAL_WORKING"),rd=isRD(e,d);
  const dbl=k=>hs.some(h=>h.kind==k&&h.overlap_group&&h.source&&new Set(hs.filter(q=>q.kind==k&&q.overlap_group==h.overlap_group&&q.source).map(q=>(q.name||"").toLowerCase())).size>=2);if(rg>=2&&dbl("LEGAL"))return rd?"DRH-RD":"DRH";if(rg)return rd?"RH-RD":"RH";if(sp>=2&&dbl("SPECIAL"))return rd?"DSNWD-RD":"DSNWD";if(sp)return rd?"SNWD-RD":"SNWD";if(sw&&!rd)return"SWD";return rd?"RD":"OD"}
 /* pure calculation engine: minute-level segmentation (break, OT after normal hours, NSD 22:00-06:00, midnight/holiday boundary) */
 function calcDuty(o){return DutyEngine.calculate({...o,classify:date=>dayCode(o.e,date),rule:ruleFor})}
 const manilaDateFormatter=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Manila",year:"numeric",month:"2-digit",day:"2-digit"});
 const manilaToday=()=>manilaDateFormatter.format(new Date());
-const payFor=(e,d)=>PH.filter(q=>q.emp_id==e.id&&q.effective_from<=d).sort((a,b)=>b.effective_from.localeCompare(a.effective_from))[0]||(DEMO?EP[e.id]||{}:{});
+const payFor=(e,d)=>versionAt("wages",PH,"emp_id",e.id,d)||(DEMO?EP[e.id]||{}:{});
 const schedBrk=e=>{const b=blocksOf(e.id,e._workDate).filter(x=>x.kind=="break");return b.length?b.reduce((t,x)=>t+dur(x.t_start,x.t_end),0):(dur(e.time_in||"08:00",e.time_out||"17:00")>=540?60:0)};
 function breaksFor(e,tin,tout,brk){
  const span=dur(tin,tout);if(!Number.isInteger(brk)||brk<0||brk>=span)throw Error("Break must be whole minutes shorter than the shift");
@@ -302,14 +302,14 @@ function prevWorkDay(e,d){let q=d;for(let i=0;i<366;i++){q=addD(q,-1);if(!(isRD(
 function unworked(e,d,by){const code=dayCode(e,d);if(!RHC.includes(code))return{ok:false,pct:0};const ru=ruleFor(code,d),pf=payFor(e,d);if(pf.holiday_covered===false||!ru||!(+ru.unworked_pct))return{ok:false,pct:0};
  const q=prevWorkDay(e,d);if(!q||isNA(e,q))return{ok:false,pct:0};const rw=by[q];if(!rw||!(rw.type=="LEAVE"||(rw.verified&&["PRESENT","LATE/UT"].includes(rw.type))))return{ok:false,pct:0};return{ok:true,pct:+ru.unworked_pct,prev:q}}
 function dutyAgg(L,rows,pays,a,b,assume){
- const DS=dl2(a,b),m={},pm={};rows.forEach(w=>(m[w.emp_id]=m[w.emp_id]||{})[w.date]=w);pays.forEach(q=>pm[q.emp_id+"|"+q.date]=q);
+ const DS=dl2(a,b),m={},pm={},closedByDay=new Map(CLOSED.map(r=>[r.emp_id+"|"+r.date,r]));rows.forEach(w=>(m[w.emp_id]=m[w.emp_id]||{})[w.date]=w);pays.forEach(q=>pm[q.emp_id+"|"+q.date]=q);
  return L.map(e=>{const x={e,hrs:{},reg:0,ot:0,nsd:0,unv:0,asm:0,hd:0,hamt:0,wamt:0},by=m[e.id]||{},workedDates=new Set();
   const add=ss=>ss.forEach(z=>{x.hrs[z.code]=(x.hrs[z.code]||0)+z.reg+z.ot;x.reg+=z.reg;x.ot+=z.ot;x.nsd+=z.nsd+z.nsdOt});
   Object.values(by).filter(v=>v.verified&&v.segments?.length).forEach(v=>{
    const sg=v.segments.filter(z=>z.date>=a&&z.date<=b);sg.forEach(z=>workedDates.add(z.date));add(sg);
    const q=pm[e.id+"|"+v.date];if(q?.comps?.segs)x.wamt+=q.comps.segs.filter(z=>z.date>=a&&z.date<=b).reduce((t,z)=>t+(+z.gross||0),0);
   });
-  DS.forEach(d=>{const closed=CLOSED.find(q=>q.emp_id==e.id&&q.date==d);if(closed){if(closed.holiday_eligible){x.hd++;x.hamt+=+closed.holiday_amount||0}return}if(isNA(e,d))return;const v=by[d];if(v?.type=="N/A"||workedDates.has(d))return;
+  DS.forEach(d=>{const closed=closedByDay.get(e.id+"|"+d);if(closed){if(closed.holiday_eligible){x.hd++;x.hamt+=+closed.holiday_amount||0}return}if(isNA(e,d))return;const v=by[d];if(v?.type=="N/A"||workedDates.has(d))return;
    const pf=payFor(e,d),code=dayCode(e,d),pl=v&&["PRESENT","LATE/UT"].includes(v.type),nonWork=(!v&&(isRD(e,d)||!["OD","SWD"].includes(code)))||(v&&!pl);
    if(!nonWork){if(assume){const tin=e.time_in||"08:00",tout=e.time_out||"17:00",rr=calcFor(e,d,{tin,tout,brk:schedBrk(e)});if(rr){add(rr.segs.filter(z=>z.date>=a&&z.date<=b));x.wamt+=rr.segs.filter(z=>z.date>=a&&z.date<=b).reduce((t,z)=>t+z.gross,0);x.asm++}}else x.unv++}
    else if(RHC.includes(code)){const en=unworked(e,d,by);if(en.ok){x.hd++;if(pf.daily_rate)x.hamt+=r2(pf.daily_rate*en.pct/100)}}

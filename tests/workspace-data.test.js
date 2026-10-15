@@ -36,3 +36,7 @@ test('a Summary response cannot publish into a different page after rapid naviga
  w.eval(`globalThis.originalList=API.list.bind(API);globalThis.summaryReleases=[];API.list=(t,r)=>{if(['attendance','attendance_pay'].includes(t))return new Promise(resolve=>summaryReleases.push(async()=>resolve(await originalList(t,r))));return originalList(t,r)};V='sum';shell()`);
  await new Promise(r=>setTimeout(r,10));const before=w.eval('JSON.stringify([SD,SAP,SP])');w.eval(`V='emp';shell();summaryReleases.forEach(release=>release())`);await new Promise(r=>setTimeout(r,10));assert.ok(w.document.getElementById('emt'));assert.equal(w.eval('JSON.stringify([SD,SAP,SP])'),before);
 });
+test('indexed employee eligibility preserves historical and employment-date rules',()=>{
+ w.eval(`E=[{id:'active',status:'Active'},{id:'recorded',status:'Inactive'},{id:'closed',status:'Inactive'},{id:'ended',status:'Inactive',date_hired:'2026-01-01',date_end:'2026-10-02'},{id:'excluded',status:'Inactive'}];A={'recorded|2026-10-01':{emp_id:'recorded',date:'2026-10-01'}};CLOSED=[{emp_id:'closed',date:'2026-10-02'}];V='att';cut={m:'2026-10',h:1}`);
+ assert.deepEqual(Array.from(w.eval('fa().map(e=>e.id)')),['active','recorded','closed','ended']);
+});

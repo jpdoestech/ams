@@ -9,7 +9,9 @@
     "dev": "node scripts/dev.js",
     "test:ui": "node scripts/ui-check.js",
     "test:file": "node scripts/build.js && node scripts/file-check.js",
-    "check:deployment": "node scripts/check-deployment.js"
+    "check:deployment": "node scripts/check-deployment.js",
+    "test:concurrency": "node scripts/concurrency-check.js",
+    "benchmark:workspace": "node scripts/benchmark-workspace.js"
   },
   "repository": {
     "type": "git",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
     "jsdom": "^29.1.1",
+    "pg": "^8.23.1",
     "playwright-core": "^1.64.1"
   },
   "private": true,

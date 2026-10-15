@@ -6,6 +6,8 @@ Opening the source `index.html` directly with `file://` starts offline demo mode
 
 ## 1. Supabase database and authentication
 
+For an existing database already through 010, apply **011_workspace_performance.sql**, then **012_concurrent_attendance.sql**. These add conditional workspace reads, RLS query-plan optimizations, and per-entry write concurrency while retaining finalization protection. The new frontend falls back to the previous read path if 011 is not installed; reload the browser after migration to enable the optimized RPC. See [performance and free-plan usage](PERFORMANCE.md) for refresh behavior, benchmarks, and storage boundaries.
+
 The supplied Supabase onboarding values can be stored in ignored `.env.local` using `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. `npm run dev` loads that file. Vercel must have the same variables configured in its own project environment and be redeployed; a local env file is not uploaded. Existing `SUPABASE_URL` plus `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`) names are also supported by both config and sync endpoints.
 
 This is a static application with Vercel API functions, not a Next.js application. The installed Supabase SDK is served from the same origin and the browser client handles session persistence/refresh. `@supabase/ssr` is installed as requested but no Next.js route, `todos` page, or cookie middleware is active. Server sync continues to validate the caller's JWT with Supabase Auth and enforce the active role.
@@ -15,7 +17,7 @@ For databases already through 007, apply **008_attendance_approval.sql**, **009_
 Run `npm run check:deployment -- https://your-app.vercel.app` to check public availability/configuration and release assets. It does not authenticate, apply SQL, or write Google Sheets. Missing Google settings are reported even if sync is intentionally disabled; this is not a core attendance failure. GitHub CI runs unit/database checks, builds, and real-browser responsive workflows on pushes and pull requests.
 
 1. Create a Supabase project. In SQL Editor, run **the complete `supabase/schema.sql`** as the database owner. It includes all ordered migrations and is rerunnable. Do not run a partial selection of a function body.
-2. For an existing AMS database, take a database backup first. Run missing ordered files in `supabase/migrations/` (001 through 010). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. If already updated through 005, apply **006_audit_controls.sql** and then **007_department_positions.sql** before deploying the corresponding features. Migration 007 derives department/position mappings from existing employee assignments without rewriting their values. New or changed position assignments must belong to the selected department. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
+2. For an existing AMS database, take a database backup first. Run missing ordered files in `supabase/migrations/` (001 through 012). They restore the previously missing base migrations, preserve existing records, add integrity checks, and retain legacy rows as unverified. If already updated through 005, apply **006_audit_controls.sql** and then **007_department_positions.sql** before deploying the corresponding features. Migration 007 derives department/position mappings from existing employee assignments without rewriting their values. New or changed position assignments must belong to the selected department. Rehearse against a copy of the existing database before rollout; the original deployment schema was absent from the repository.
 3. Enable Email authentication. Set Authentication → URL Configuration → Site URL to the production Vercel URL. Add any preview URLs used for sign-in/confirmation to the allowed redirect list.
 4. Create your account using **Request access**, or create it in the Supabase Auth dashboard. All accounts start inactive with role `viewer`.
 5. In SQL Editor, explicitly approve your own trusted account, substituting its exact email:
@@ -84,7 +86,7 @@ Existing v4 locks remain effective, but have no newly generated holiday-entitlem
 
 - **Demo mode on Vercel:** check `SUPABASE_URL` and `SUPABASE_ANON_KEY` and redeploy.
 - **Awaiting access:** approve the profile's Active flag and role with a Superadmin.
-- **Missing table/RPC:** ensure all ten migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
+- **Missing table/RPC:** ensure all twelve migrations completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
 - **No pay:** check effective wage date, actual punches, and holiday coverage. Blank cells do not earn worked pay.
 - **Wage date already exists:** versions cannot be replaced; insert a new effective date. Existing worked-day snapshots are unchanged.
 - **Sync 403:** the caller must be active Staff/Superadmin, and the destination must be shared with the service account.

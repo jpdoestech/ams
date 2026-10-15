@@ -21,7 +21,8 @@ assets/
   ui.js                         SVG icons, controls and navigation accessibility
   ui-workflows.js               Fixed modal chrome, filter indicators, dependent lookups
   operations.js                 Attendance review, dated assignments, adjustment ledger
-  workspace-data.js             Parallel atomic loading and brief navigation reuse
+  workspace-data.js             Conditional workspace RPC, deltas, shared-user refresh
+  data-indexes.js                Indexed wage/rule/calendar lookups
   supabase-client.js            Browser auth persistence and automatic token refresh
   styles.css                    Workspace design tokens and responsive layouts
 api/
@@ -29,11 +30,12 @@ api/
   sync.js                       Authenticated Supabase → Google Sheets sync
 supabase/
   schema.sql                    Generated complete fresh-install schema
-  migrations/                   Ordered additive migrations 001–010
+  migrations/                   Ordered additive migrations 001–012
 scripts/                        Static build and schema-generation scripts
 tests/                          PostgreSQL, calculation, DOM, and API tests
 docs/DEPLOYMENT.md               Supabase, Vercel, Google setup and rollout
 docs/USER-GUIDE.md              Day-to-day workflow
+docs/PERFORMANCE.md             Free-plan read/write tuning and repeatable benchmarks
 docs/DUTY-PAY-RULES.md           Rules, assumptions, evidence, and boundaries
 ATTENDANCE_DUTY_PAY_RULES.md     User-provided implementation specification
 .env.example                    Environment variable names; no credentials

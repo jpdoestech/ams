@@ -115,6 +115,8 @@ An active Staff/Superadmin can sync the selected attendance cut-off when configu
 
 ## Submit and review attendance
 
+Shared changes are checked automatically while Dashboard, Employees, or Attendance is visible and idle, about every 45–53 seconds. Hidden tabs, open modals, and focused editing controls pause background refresh. Clicking the current page's breadcrumb forces a full refresh. Saves continue checking revisions against the server; if another user changed an entry, reload it instead of overwriting their change.
+
 Save duty immediately records a draft; an authorized duty-code override is not an approval. In Attendance, choose **Review**, select recorded entries, and **Submit selected**. The current employee filters and cut-off apply. Submitted records cannot be edited until a superadmin returns them with a reason. A superadmin who neither edited nor submitted the record can approve it. Workspaces therefore need an independent superadmin reviewer; a single administrator cannot approve their own entries.
 
 Approved records retain overwrite protection. An explicit authorized overwrite of an unlocked approved entry resets it to draft and requires another submission/approval. Review decisions advance revisions, so a stale save or decision requires reloading. The history icon shows actor, time, note, and the original attendance values for each decision. Decision records remain available even when optional audit capture is disabled. Finalization rejects unapproved recorded entries as well as the existing missing-duty/wage/holiday checks. Previously finalized periods remain protected.

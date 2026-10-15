@@ -40,7 +40,7 @@ Content fills available screen width up to 2200px for data tables, 1600px for Da
 
 Reduced-motion preferences disable nonessential transitions. No remote fonts, icon libraries, or theme frameworks are required at runtime.
 
-Workspace datasets load with up to six parallel requests. A complete load is published atomically; a failed or superseded request cannot partially replace the visible data. Navigation reuses a snapshot for up to 15 seconds for the same user, role, and cut-off. Selecting the current page again forces a reload, and existing save workflows continue to reload immediately. Sign-out invalidates pending loads. The header shows loading feedback while navigation waits. Assignment history is indexed by employee and effective date instead of repeatedly sorting every version for each table cell.
+With migration 011, workspace datasets load in one conditional RPC, with unchanged catalogs omitted and period rows replaced only for employees that changed. The compatibility loader uses up to six parallel requests when that RPC is not installed. A complete load is published atomically; a failed or superseded request cannot partially replace the visible data. Navigation reuses a snapshot for up to 15 seconds for the same user, role, and cut-off. Selecting the current page again forces a reload, and existing save workflows continue to reload immediately. Sign-out invalidates pending loads. Visible, idle Dashboard/Employees/Attendance screens check for shared changes about every 45–53 seconds; hidden tabs and active editors pause these checks. The header shows loading feedback while navigation waits. Assignment history is indexed by employee and effective date instead of repeatedly sorting every version for each table cell.
 
 ## Checks
 

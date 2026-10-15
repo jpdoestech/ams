@@ -22,11 +22,12 @@ async function asUser(db,id,fn){
  await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${id}',false);`);
  try{return await fn()}finally{await db.exec(`reset role;select set_config('request.jwt.claim.sub','',false)`)}
 }
-async function browser(){
+async function browser({supabaseClient}={}){
  const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://ams.test',runScripts:'outside-only'});
  dom.window.confirm=()=>true;dom.window.alert=()=>{};
  dom.window.structuredClone=structuredClone;
- for(const file of ['theme.js','layout.js','duty-engine.js','ui.js','confirm-dialog.js','data-tools.js','attendance-xlsx.js','analytics.js','analytics-charts.js','ui-workflows.js','workspace-features.js','operations.js','workspace-data.js','supabase-client.js','app.js'])new vm.Script(fs.readFileSync('assets/'+file,'utf8')).runInContext(dom.getInternalVMContext());
+ if(supabaseClient){dom.window.AMS_CONFIG={URL:'https://test.supabase.co',KEY:'public'};dom.window.supabase={createClient:()=>supabaseClient}}
+ for(const file of ['theme.js','layout.js','duty-engine.js','ui.js','confirm-dialog.js','data-tools.js','attendance-xlsx.js','analytics.js','analytics-charts.js','ui-workflows.js','workspace-features.js','operations.js','workspace-data.js','data-indexes.js','supabase-client.js','app.js'])new vm.Script(fs.readFileSync('assets/'+file,'utf8')).runInContext(dom.getInternalVMContext());
  dom.window.eval=code=>new vm.Script(code).runInContext(dom.getInternalVMContext());
  // Global lexical declarations remain visible to later script evaluations.
  await new Promise(resolve=>setTimeout(resolve,50));

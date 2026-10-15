@@ -10,12 +10,12 @@
  function build({employees,attendance,start,end,isScheduled=()=>true,context=e=>e,include=()=>true}){
   const ds=dates(start,end),within=d=>d>=start&&d<=end;
   const employed=(e,d)=>(!e.date_hired||e.date_hired<=d)&&(!e.date_end||e.date_end>=d)&&((e.status||'Active')==='Active'||!!e.date_end);
-  const index=new Map(),worked=new Map();
+  const index=new Map(),worked=new Map(),employeeIndex=new Map(employees.map(e=>[e.id,e]));
   attendance.forEach(r=>{
    index.set(r.emp_id+'|'+r.date,r);
    if(!r.verified)return;
    const segments=r.segments?.length?r.segments:[{date:r.date,reg:r.reg_min||0,ot:r.ot_min||0}];
-   segments.forEach(s=>{if(!within(s.date))return;const minutes=(+s.reg||0)+(+s.ot||0);if(minutes<=0)return;const e=employees.find(e=>e.id===r.emp_id);if(!e)return;const assignment={...context(e,s.date),...(r.schedule_snapshot||{})};if(!include(assignment,s.date))return;const k=r.emp_id+'|'+s.date,v=worked.get(k)||{minutes:0,ot:0,allocations:[]};v.minutes+=minutes;v.ot+=(+s.ot||0);v.allocations.push({assignment,hours:minutes/60});worked.set(k,v)});
+   segments.forEach(s=>{if(!within(s.date))return;const minutes=(+s.reg||0)+(+s.ot||0);if(minutes<=0)return;const e=employeeIndex.get(r.emp_id);if(!e)return;const assignment={...context(e,s.date),...(r.schedule_snapshot||{})};if(!include(assignment,s.date))return;const k=r.emp_id+'|'+s.date,v=worked.get(k)||{minutes:0,ot:0,allocations:[]};v.minutes+=minutes;v.ot+=(+s.ot||0);v.allocations.push({assignment,hours:minutes/60});worked.set(k,v)});
   });
   const people=employees.filter(e=>ds.some(d=>include(context(e,d),d)&&(employed(e,d)||index.has(e.id+'|'+d)))||ds.some(d=>worked.has(e.id+'|'+d)));
   const daily=ds.map(date=>({date,headcount:people.filter(e=>employed(e,date)&&include(context(e,date),date)).length,scheduled:0,worked:0,absent:0,leave:0,unverified:0,hours:0}));
