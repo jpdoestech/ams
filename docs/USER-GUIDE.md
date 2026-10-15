@@ -85,6 +85,7 @@ Superadmins can turn audit capture off or select Employees, Attendance, Schedule
 
 Open **Analytics**, choose From/To dates (up to 366 days), optionally filter by employee or assignment, and click Apply. Export CSV downloads the selected view and applied range.
 
+- **Overview** (default): attendance and workforce trend lines, a headcount bar chart by assignment, and a donut/pie chart of regular versus overtime hours. Hover dates or focus a trend and use arrow keys to inspect values. The graphs use the same applied dates and filters as the tables. Overview CSV exports the underlying daily measures. No recorded work produces an empty hours ring rather than estimated hours.
 - **Employee attendance**: scheduled and actual worked days, recorded attendance percentage, absence/AWOL, paid and unpaid leave, unverified days, work/OT hours, and late/undertime minutes.
 - **Manpower / workforce**: headcount at the start and end of the range, hires, separations, and recorded hours by assignment and department.
 - **Daily trend**: daily headcount, scheduled employees, recorded work, absence, leave, unverified days, and hours.

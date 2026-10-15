@@ -20,7 +20,7 @@ async function run(){
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');await screenshot('dashboard-dark');
   for(const view of ['emp','att','sum','std','usr','analytics','audit']){
     await page.locator('.side-nav [data-v="'+view+'"]').click();await page.waitForSelector('#mn[data-view="'+view+'"]');
-    await page.locator('#mn .wrap').first().waitFor();
+    await page.locator(view==='analytics'?'#analytics-overview .analytics-chart':'#mn .wrap').first().waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Desktop overflow: '+view);
     await screenshot(view+'-dark');
   }
@@ -106,10 +106,13 @@ async function run(){
   assert.equal((await page.locator('#mn .wrap tbody').innerText()).includes('DELA CRUZ'),false);
   await page.locator('.side-nav [data-v="sum"]').click();await page.locator('#stot .card').first().waitFor();
   assert.ok(await page.locator('#stot .card').first().evaluate(el=>el.getBoundingClientRect().height<=34),'Compact summary totals');await screenshot('summary-compact');
-  await page.locator('.side-nav [data-v="analytics"]').click();await page.locator('#analytics-table tbody').waitFor();
+  await page.locator('.side-nav [data-v="analytics"]').click();await page.locator('#analytics-overview .analytics-chart').first().waitFor();
   await page.locator('#analytics-from').fill('2026-09-01');await page.locator('#analytics-to').fill('2026-10-15');
   await page.locator('#analytics-form button[type="submit"]').click();await page.waitForFunction(()=>document.querySelector('#analytics-status').textContent.startsWith('2026-09-01'));
-  await screenshot('analytics-employees');
+  await screenshot('analytics-overview-dark');
+  assert.equal(await page.locator('#analytics-data').isVisible(),false);
+  await page.locator('.chart-hit').first().focus();await page.keyboard.press('ArrowRight');assert.match(await page.locator('.chart-readout').first().innerText(),/2026-09-02/);
+  await page.locator('[data-analytics-tab=employees]').click();await screenshot('analytics-employees');
   await page.locator('[data-analytics-tab="workforce"]').click();assert.match(await page.locator('#analytics-table').innerText(),/Headcount at end/);await screenshot('analytics-workforce');
   await page.locator('[data-analytics-tab="daily"]').click();assert.equal(await page.locator('#analytics-table tbody tr').count(),45);
   await page.locator('.side-nav [data-v="audit"]').click();await page.locator('#audit-enabled').waitFor();
@@ -133,14 +136,29 @@ async function run(){
   await page.setViewportSize({width:390,height:844});
   for(const view of ['analytics','audit']){
    await page.locator('[data-nav-toggle]').click();await page.locator('.side-nav [data-v="'+view+'"]').click();
-   await page.locator(view==='analytics'?'#analytics-table tbody':'#audit-enabled').waitFor();
+   await page.locator(view==='analytics'?'#analytics-status':'#audit-enabled').waitFor();
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile overflow: '+view);await screenshot(view+'-mobile');
   }
   await page.setViewportSize({width:1440,height:1000});await page.locator('.side-nav [data-v="att"]').click();await page.waitForSelector('#gt');
   await page.locator('[data-act="aexp"] svg').dispatchEvent('click');await page.waitForSelector('[role="dialog"]');await page.keyboard.press('Escape');
+  // Every workspace screen must fit the viewport; wide tables scroll within their containers.
+  for(const [width,height] of [[320,740],[375,812],[768,1024],[844,390],[1024,768],[1366,768],[1920,1080]]){
+   await page.setViewportSize({width,height});
+   for(const view of ['dash','emp','att','sum','std','usr','analytics','audit']){
+    await page.evaluate(view=>{V=view;if(view==='analytics')analyticsMode='overview';shell()},view);
+    const ready={dash:'.metric-grid',emp:'#emt',att:'#gt',sum:'#sbd',std:'[data-stab]',usr:'[data-u]',analytics:'.analytics-chart',audit:'#audit-enabled'}[view];await page.locator(ready).first().waitFor();
+    const overflow=await page.evaluate(()=>{const main=document.querySelector('#mn'),right=main.getBoundingClientRect().right;return{page:document.documentElement.scrollWidth>innerWidth,main:main.scrollWidth>main.clientWidth+1,controls:[...main.children].filter(el=>!el.hidden&&el.getBoundingClientRect().right>right+2).map(el=>el.id||el.className)}});
+    assert.deepEqual(overflow,{page:false,main:false,controls:[]},`Responsive screen: ${view} at ${width}x${height}`);
+    if(view==='analytics'&&[375,1366].includes(width))await screenshot('overview-responsive-'+width);
+    if(view==='std')for(const tab of ['sto','sup','hol','pay']){await page.locator('[data-stab="'+tab+'"]').click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Standards '+tab+' at '+width)}
+   }
+  }
+  await page.setViewportSize({width:1366,height:768});await page.evaluate(()=>{V='analytics';analyticsMode='overview';shell()});await page.locator('.analytics-chart').first().waitFor();
+  await page.selectOption('select[data-theme-preference]','light');await screenshot('analytics-overview-light');
+  await page.locator('#analytics-search').fill('does-not-exist');await page.locator('#analytics-form button[type=submit]').click();await page.locator('.overview-empty').waitFor();assert.equal(await page.locator('#analytics-data').isVisible(),false);
   await page.evaluate(()=>login());await page.waitForSelector('#le');await screenshot('login-dark');
   assert.equal(await page.locator('select[data-theme-preference]').isVisible(),true);
-  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and four viewport sizes.');
+  assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and seven responsive viewport sizes.');
  }finally{await browser?.close();server.kill()}
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

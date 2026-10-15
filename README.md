@@ -10,6 +10,7 @@ assets/
   app.js                        Existing screens, state, Supabase adapter
   data-tools.js                 Atomic saves, staged import, DTR/CSV exports
   analytics.js                  Date-bounded attendance and workforce measures
+  analytics-charts.js           Responsive SVG overview charts and keyboard exploration
   workspace-features.js         Analytics, audit controls, duty list, comment popovers
   confirm-dialog.js             Accessible in-app confirmation pop-ups
   duty-engine.js                Shared, testable browser calculation core
