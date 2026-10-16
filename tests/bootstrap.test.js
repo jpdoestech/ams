@@ -2,8 +2,9 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {JSDOM}=require('jsdom');
 async function run(url,{configured=false,fail=false}={}){
  const dom=new JSDOM('<div id="app"></div>',{url,runScripts:'outside-only'}),w=dom.window,requests=[];
+ new vm.Script(fs.readFileSync('assets/ui.js','utf8')).runInContext(dom.getInternalVMContext());
  w.document.head.append=script=>{requests.push(script.src);queueMicrotask(()=>{if(script.src.endsWith('/api/config')){if(fail){script.onerror();return}w.AMS_CONFIG=configured?{URL:'https://example.supabase.co'}:{}}script.onload()})};
- new vm.Script(fs.readFileSync('assets/bootstrap.js','utf8')).runInContext(dom.getInternalVMContext());await w.AMSBoot;return{dom,w,requests};
+ new vm.Script(fs.readFileSync('assets/bootstrap.js','utf8')).runInContext(dom.getInternalVMContext());await w.AMSBoot;assert.equal(w.document.getElementById('async-status').hidden,true);return{dom,w,requests};
 }
 test('direct-file startup skips server configuration and SDK requests',async()=>{
  const f=await run('file:///C:/project/index.html');try{assert.deepEqual(f.requests,['file:///C:/project/assets/app.js']);assert.equal(f.w.AMS_CONFIG.URL,undefined)}finally{f.w.close()}

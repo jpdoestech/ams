@@ -119,5 +119,23 @@
     if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
   });
-  root.AMSUI={icon,enhance,toolIcons,setNavigation};
+  let pending=0;
+  const busyControls=new WeakSet();
+  function beginBusy(source){
+    const controls=source?.matches?.('button,input,select')?[source]:[];
+    if(source?.closest?.('.login'))controls.push(...source.closest('.login').querySelectorAll('button,input'));
+    const previous=[...new Set(controls)].map(el=>({el,disabled:el.disabled,busy:el.getAttribute('aria-busy')}));
+    previous.forEach(({el})=>{busyControls.add(el);el.disabled=true;el.setAttribute('aria-busy','true')});
+    let status=document.getElementById('async-status');
+    if(!status){status=document.createElement('div');status.id='async-status';status.className='async-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');document.body.append(status)}
+    pending++;status.hidden=false;status.textContent='Loading…';document.documentElement.classList.add('is-loading');
+    let finished=false;
+    return()=>{
+      if(finished)return;finished=true;
+      previous.forEach(({el,disabled,busy})=>{busyControls.delete(el);el.disabled=disabled;if(busy===null)el.removeAttribute('aria-busy');else el.setAttribute('aria-busy',busy)});
+      if(--pending===0){status.hidden=true;status.textContent='';document.documentElement.classList.remove('is-loading')}
+    };
+  }
+  document.addEventListener('click',event=>{if(busyControls.has(event.target.closest?.('button,input,select'))){event.preventDefault();event.stopImmediatePropagation()}},true);
+  root.AMSUI={icon,enhance,toolIcons,setNavigation,beginBusy,isBusy:el=>busyControls.has(el)};
 })(globalThis);

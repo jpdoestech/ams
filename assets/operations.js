@@ -63,7 +63,7 @@ async function reviewHistory(index){
  const events=(await API.list('attendance_review_events',[row.date,row.date])).filter(e=>e.emp_id===row.emp_id).sort((a,b)=>(a.at||'').localeCompare(b.at||''));
  modal(`<h3>Attendance decision history</h3><p class="mu">${row.date} · Decisions retain their attendance snapshot, including when optional audit capture is disabled.</p><div class="wrap compact-table"><table><thead><tr><th>When (Manila)</th><th>Action</th><th>Actor</th><th>Reason</th><th>Entry snapshot</th></tr></thead><tbody>${events.map(e=>`<tr><td>${esc(new Date(e.at).toLocaleString('en-PH',{timeZone:'Asia/Manila'}))}</td><td>${esc(e.action)}</td><td>${esc(e.actor_email)}</td><td>${esc(e.note)}</td><td><details><summary>View recorded values</summary><pre class="audit-detail">${esc(JSON.stringify(e.snapshot,null,2))}</pre></details></td></tr>`).join('')||'<tr><td colspan="5">No decisions recorded yet.</td></tr>'}</tbody></table></div><div class="row"><button class="btn" data-review-open>Back to review</button></div>`);
 }
-document.addEventListener('click',event=>{const b=event.target.closest?.('[data-review-history]');if(b)guard(()=>reviewHistory(Number(b.dataset.reviewHistory)))});
+document.addEventListener('click',event=>{const b=event.target.closest?.('[data-review-history]');if(b)guard(()=>reviewHistory(Number(b.dataset.reviewHistory)),b)});
 async function reviewModal(){
  if(!W())throw Error('Staff access required');
  const [from,to]=rng(),people=new Map(fe().map(e=>[e.id,e]));
@@ -78,6 +78,8 @@ async function reviewModal(){
  $('review-filter').onchange=render;$('review-all').onchange=e=>document.querySelectorAll('[data-review-row]:not(:disabled)').forEach(c=>c.checked=e.target.checked);render();
 }
 async function saveAssignment(id,from,assignment,blocks,reason){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!Number.isFinite(Date.parse(from+'T00:00:00Z'))||new Date(from+'T00:00:00Z').toISOString().slice(0,10)!==from)throw Error('Choose a valid schedule effective date');
+ if(!reason||reason.trim().length<3)throw Error('Enter a schedule or assignment reason with at least 3 characters');
  const expected=Math.max(0,...ASSIGNMENTS.filter(v=>v.emp_id===id).map(v=>Number(v.version_no)));
  return persistOperation('save_assignment_version',{p_emp:id,p_from:from,p_assignment:assignment,p_blocks:blocks,p_reason:reason,p_expected:expected||null},draft=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||new Date(from+'T00:00:00Z').toISOString().slice(0,10)!==from||reason.trim().length<3)throw Error('Effective date and reason required');
@@ -120,7 +122,7 @@ async function adjustmentsView(){
  const [from,to]=adjustmentRange.length?adjustmentRange:rng();
  $('mn').innerHTML=`<form id="adjustments-filter" class="row analytics-controls"><label>From<input type="date" id="adjustments-from" value="${from}" required></label><label>To<input type="date" id="adjustments-to" value="${to}" required></label><button class="btn p" type="submit">Apply</button><button class="btn" type="button" data-adjustment-new>${svg('plus')}New correction</button><button class="btn" type="button" data-adjustment-export>${svg('download')}Export ledger</button></form><p id="adjustments-status" class="analytics-note" role="status"></p><div class="compact-totals" id="adjustments-totals"></div><p class="analytics-note">Signed corrections are separate from original duty/pay. Approved amounts are shown in this ledger only; they do not automatically run payroll or change Attendance/Analytics totals.</p><div class="wrap compact-table"><table><thead><tr><th>Employee</th><th>Date</th><th>Minutes ±</th><th>Amount ±</th><th>Reason / reference</th><th>Status</th><th>Decision</th></tr></thead><tbody id="adjustments-body"></tbody></table></div>`;
  const apply=async()=>{const a=$('adjustments-from').value,b=$('adjustments-to').value;AMSAnalytics.dates(a,b);const rows=await API.list('cutoff_adjustments',[a,b]);if(V!=='adjustments')return;adjustmentRows=rows;adjustmentRange=[a,b];$('adjustments-status').textContent='Applied range: '+a+' — '+b;const approved=rows.filter(r=>r.status==='approved');$('adjustments-totals').innerHTML=`<div>Pending <strong>${rows.filter(r=>r.status==='pending').length}</strong></div><div>Approved minutes <strong>${approved.reduce((s,r)=>s+r.minutes_delta,0)}</strong></div><div>Approved amount <strong>${approved.reduce((s,r)=>s+Number(r.amount_delta),0).toFixed(2)}</strong></div>`;$('adjustments-body').innerHTML=rows.map(r=>{const e=E.find(e=>e.id===r.emp_id);return `<tr><td>${esc(e?.emp_no)} · ${esc(e?.last_name)}</td><td>${r.date}</td><td>${r.minutes_delta}</td><td>${Number(r.amount_delta).toFixed(2)}</td><td>${esc(r.reason)}<small class="employee-ref">${esc(r.reference)}</small></td><td>${esc(r.status)}</td><td>${SAD()&&r.status==='pending'?`<button class="btn" data-adjustment-decide="${r.id}">${svg('shield')}Review</button>`:esc(r.decision_note||'—')}</td></tr>`}).join('')||'<tr><td colspan="7">No corrections in this range.</td></tr>'};
- $('adjustments-filter').onsubmit=e=>{e.preventDefault();guard(apply)};await apply();
+ $('adjustments-filter').onsubmit=e=>{e.preventDefault();guard(apply,e.submitter||e.currentTarget.querySelector('[type="submit"]'))};await apply();
 }
 let adjustmentId=null;
 function adjustmentForm(){
@@ -152,5 +154,5 @@ document.addEventListener('click',event=>{
   else if(b.dataset.adjustmentDecide)adjustmentDecision(b.dataset.adjustmentDecide);
   else if(b.dataset.adjustmentAction){await decideAdjustment(b.dataset.id,b.dataset.adjustmentAction,$('adjustment-decision-note').value);closeM();await adjustmentsView();toast('Decision saved')}
   else if(b.hasAttribute('data-adjustment-export'))dl('adjustments_'+adjustmentRange.join('_')+'.csv',[['FROM','TO','id','emp_no','date','minutes_delta','amount_delta','reason','reference','status','submitted_by','submitted_at','decided_by','decided_at','decision_note'],...adjustmentRows.map(r=>[...adjustmentRange,r.id,E.find(e=>e.id===r.emp_id)?.emp_no,r.date,r.minutes_delta,r.amount_delta,r.reason,r.reference,r.status,r.submitted_by,r.submitted_at,r.decided_by,r.decided_at,r.decision_note])]);
- }finally{if(b.isConnected)b.disabled=false}});
+ }finally{if(b.isConnected)b.disabled=false}},b);
 });

@@ -32,7 +32,7 @@ async function load({reuse=false,full=false,background=false,pending=null}={}){
  const key=JSON.stringify([ROLE,P?.id||'',...range]);
  if(reuse&&workspaceLoadedKey===key&&Date.now()-workspaceLoadedAt>=0&&Date.now()-workspaceLoadedAt<15000)return{changed:false};
  if(reuse&&workspaceInFlight?.key===key)return workspaceInFlight.promise;
- const generation=++workspaceLoadGeneration,writer=W(),started=pending?.started??performance.now();
+ const generation=++workspaceLoadGeneration,writer=W(),started=pending?.started??performance.now(),done=background?()=>{}:AMSUI.beginBusy();
  const tables=['cutoff_schedules','employee_assignment_versions','employees','holidays','field_defs','attendance_comments','lookups','department_positions','stores','supervisors','supervisor_stores','emp_supervisors','duty_blocks','duty_pay_rules','cutoff_locks','cutoff_snapshot_view',...(writer?['wage_history','employee_pay','attendance_pay']:[]),'attendance'];
  const ranged=new Set(periodTables);
  const promise=(async()=>{
@@ -63,7 +63,7 @@ async function load({reuse=false,full=false,background=false,pending=null}={}){
   return snapshot?{changed:snapshot.changed,catalogChanged:snapshot.catalogChanged}:{changed:true,catalogChanged:true};
  })();
  workspaceInFlight={key,promise};
- try{await promise}finally{if(workspaceInFlight?.promise===promise)workspaceInFlight=null}
+ try{await promise}finally{done();if(workspaceInFlight?.promise===promise)workspaceInFlight=null}
 }
 async function navigateWorkspace(view){
  const refresh=view===V,request=++workspaceNavigation;V=view;sel=null;AMSUI.setNavigation(false,false);

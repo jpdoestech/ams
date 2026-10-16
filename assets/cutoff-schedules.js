@@ -40,7 +40,7 @@ async function saveCutoffSchedule(){
  await load({full:true});stdv();toast('Repeating cut-off schedule saved');
 }
 if(typeof document!=='undefined'){
- document.addEventListener('click',event=>{if(event.target.closest?.('[data-cutoff-save]'))guard(saveCutoffSchedule)});
+ document.addEventListener('click',event=>{const button=event.target.closest?.('[data-cutoff-save]');if(button)guard(saveCutoffSchedule,button)});
  document.addEventListener('input',event=>{if(['cutoff-first','cutoff-second'].includes(event.target.id))cutoffPreview()});
  document.addEventListener('change',event=>{if(event.target.id==='cutoff-effective'){cutoffSettingsMonth=event.target.value||cut.m;stdv()}else if(event.target.id==='cutoff-second')cutoffPreview();else if(['smo','xmo'].includes(event.target.id))syncCutoffPickers()});
 }

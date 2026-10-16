@@ -246,6 +246,27 @@ async function run(){
   assert.equal(scale.fixtureEmployees,500);assert.equal(scale.fixtureAttendance,7500);assert.equal(scale.renderedRows,50);await page.locator('#fq').fill('SCALE-499');await page.waitForFunction(()=>document.querySelectorAll('#gt tbody tr').length===1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);console.log('Synthetic browser fixture: '+JSON.stringify(scale));
   await page.evaluate(()=>login());await page.waitForSelector('#le');await screenshot('login-dark');
   assert.equal(await page.locator('select[data-theme-preference]').isVisible(),true);
+  const authPage=await browser.newPage({viewport:{width:1440,height:1000}});authPage.on('pageerror',error=>errors.push(error.message));
+  await authPage.route('**/api/config',route=>route.fulfill({contentType:'application/javascript',body:'window.AMS_CONFIG={URL:"https://auth-check.supabase.co",KEY:"public-test-key"};'}));
+  let releaseLogin,loginRequests=0;
+  await authPage.route('https://auth-check.supabase.co/**',async route=>{
+   const request=route.request(),headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-expose-headers':'x-supabase-api-version','x-supabase-api-version':'2024-01-01'};
+   if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+   assert.equal(request.headers().apikey,'public-test-key');
+   if(request.url().includes('/token')){loginRequests++;await new Promise(resolve=>{releaseLogin=resolve});return route.fulfill({status:400,headers,contentType:'application/json',body:JSON.stringify({message:'Invalid login credentials',code:'invalid_credentials'})})}
+   return route.fulfill({status:422,headers,contentType:'application/json',body:JSON.stringify({message:'Email address is invalid',code:'email_address_invalid'})});
+  });
+  await authPage.goto('http://127.0.0.1:'+port);await authPage.waitForSelector('#le');await authPage.selectOption('select[data-theme-preference]','dark');
+  await authPage.locator('#le').fill('person@example.com');await authPage.locator('#lp').fill('incorrect password');await authPage.locator('[data-act="in"]').click();await authPage.waitForFunction(()=>document.querySelector('[data-act="in"]').getAttribute('aria-busy')==='true');
+  assert.equal(await authPage.locator('[data-act="up"]').isDisabled(),true);assert.equal(await authPage.locator('#async-status').isVisible(),true);
+  await authPage.screenshot({path:'test-results/ui/login-loading.png',animations:'disabled'});
+  for(let attempt=0;!releaseLogin&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(releaseLogin,'Login request reached the mocked endpoint');releaseLogin();
+  await authPage.waitForFunction(()=>document.getElementById('auth-feedback').textContent.includes('invalid_credentials'));assert.equal(loginRequests,1);assert.equal(await authPage.locator('[data-act="in"]').isEnabled(),true);assert.equal(await authPage.locator('#async-status').isVisible(),false);
+  assert.match(await authPage.locator('#auth-feedback').innerText(),/Invalid login credentials/);
+  await authPage.screenshot({path:'test-results/ui/login-invalid-credentials-dark.png',animations:'disabled'});
+  await authPage.setViewportSize({width:320,height:740});await authPage.selectOption('select[data-theme-preference]','light');await authPage.locator('#auth-feedback').scrollIntoViewIfNeeded();
+  assert.equal(await authPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await authPage.screenshot({path:'test-results/ui/login-invalid-credentials-mobile.png',animations:'disabled'});
+  await authPage.locator('[data-act="up"]').click();await authPage.waitForFunction(()=>document.getElementById('auth-feedback').textContent.includes('email_address_invalid'));assert.match(await authPage.locator('#auth-feedback').innerText(),/Email address is invalid/);await authPage.close();
   assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and nine responsive viewport sizes.');
  }finally{await browser?.close();server.kill()}
 }

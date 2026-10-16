@@ -18,6 +18,10 @@ Choose **System**, **Light**, or **Dark** from the appearance selector in the to
 
 New signups are inactive Viewers until approved. Users cannot change their own role or activation. Access is enforced in Supabase as well as the interface.
 
+Sign in with your registered email address; there is no separate username. Invalid credentials and other server errors remain visible below the login buttons with their error code. Request access requires an email and a password of at least six characters; the server may require a stronger password. Confirm your email when asked, then wait for administrator approval. Contact your administrator if you forget your email or password; self-service password recovery is not yet implemented.
+
+Async actions show a loading indicator, and action buttons show a spinner and reject repeat clicks while pending. The sign-in form also locks its inputs and both actions until the request finishes. Workspace errors retain the server message and code in a dismissible panel. Background refresh stays quiet.
+
 ## Standards and employees
 
 Set standard values, regions/cities, stores/vendors, supervisors, and holidays first. Store/supervisor codes appear as `CODE | Name`. Employee forms use these values consistently. Custom fields support typed values, groups, required fields, and dropdowns; disabling a field preserves its data.

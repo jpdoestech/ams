@@ -92,6 +92,9 @@ Existing v4 locks remain effective, but have no newly generated holiday-entitlem
 
 - **Demo mode on Vercel:** check `SUPABASE_URL` and `SUPABASE_ANON_KEY` and redeploy.
 - **Awaiting access:** approve the profile's Active flag and role with a Superadmin.
+- **Login/signup failures:** read the persistent message and error code under the login buttons. An invalid password or unknown email can return `invalid_credentials`; unconfirmed accounts return `email_not_confirmed`. The HTTP status alone does not identify the cause. Signup password rules and email limits are configured in Supabase Auth.
+- **No API key found in request:** the Supabase gateway received no `apikey` header. Opening its API URL directly in a browser produces this error. AMS uses the Supabase SDK, which attaches the configured public key to auth and database requests; verify the failed request's headers if this happens inside AMS. Do not paste session tokens, passwords, or authorization headers into diagnostic reports.
+- **Save RPC HTTP 400:** inspect the Response JSON `message` and `code`, now preserved in the app's error panel. Schedule saves require a valid effective date and reason; employee saves can fail for stale revisions, invalid contact/pay values, or duplicate employee numbers. A missing RPC needs migration/schema-cache checks. These are different failures; do not bypass database validation to suppress the status.
 - **Missing table/RPC:** ensure all ordered migrations through 016 completed; reload PostgREST's schema cache if needed (`notify pgrst, 'reload schema';`).
 - **No pay:** check effective wage date, actual punches, and holiday coverage. Blank cells do not earn worked pay.
 - **Wage date already exists:** versions cannot be replaced; insert a new effective date. Existing worked-day snapshots are unchanged.

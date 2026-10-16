@@ -14,3 +14,16 @@ test('static browser client enables SDK session persistence and refresh without 
  assert.equal(box.AMSAuth.createClient({URL:'https://example.supabase.co',KEY:'public'}),'client');assert.equal(options.auth.autoRefreshToken,true);assert.equal(options.auth.persistSession,true);assert.equal(options.auth.detectSessionInUrl,true);
  assert.throws(()=>box.AMSAuth.createClient({URL:'https://example.supabase.co'}),/publishable key/);
 });
+test('installed Supabase SDK sends the public API key for login, signup and save RPCs',async()=>{
+ const {createClient}=require('@supabase/supabase-js'),requests=[];
+ const client=createClient('https://test.supabase.co','public-test-key',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:async(url,options)=>{
+  requests.push({url:String(url),headers:new Headers(options.headers)});
+  return new Response(JSON.stringify({message:'Rejected for test',code:'invalid_credentials'}),{status:400,headers:{'Content-Type':'application/json'}});
+ }}});
+ await client.auth.signInWithPassword({email:'person@example.com',password:'incorrect'});
+ await client.auth.signUp({email:'person@example.com',password:'password'});
+ await client.rpc('save_assignment_version',{});
+ await client.rpc('save_employees',{});
+ assert.equal(requests.length,4);
+ for(const request of requests)assert.equal(request.headers.get('apikey'),'public-test-key',request.url);
+});

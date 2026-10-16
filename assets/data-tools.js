@@ -78,12 +78,12 @@ async function stageAttendanceImport(csv){
   });
   modal(`<h3>Review attendance import</h3><p>${stagedImport.length} valid rows · ${issues.length} rejected rows. Reviewed and locked entries are protected.</p><div class="wrap" style="max-height:280px"><table><thead><tr><th>CSV row</th><th>Issue</th></tr></thead><tbody>${issues.map(x=>`<tr><td>${x.row}</td><td>${esc(x.message)}</td></tr>`).join('')||'<tr><td colspan="2">No validation issues.</td></tr>'}</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn" data-act="cm">Cancel</button><button class="btn p" data-import-apply ${stagedImport.length?'':'disabled'}>Import ${stagedImport.length} valid rows</button></div>`);
 }
-document.addEventListener('click',event=>{if(!event.target.hasAttribute('data-import-apply'))return;guard(async()=>{
+document.addEventListener('click',event=>{const button=event.target.closest?.('[data-import-apply]');if(!button)return;guard(async()=>{
   const changes=stagedImport;if(!changes.length)return;
-  event.target.disabled=true;
+  button.disabled=true;
   try{await saveAttendance(changes);stagedImport=[];await load();closeM();att();toast(changes.length+' rows imported')}
-  catch(error){event.target.disabled=false;throw error}
-})});
+  catch(error){button.disabled=false;throw error}
+},button)});
 
 function transactionsCSV(employees,rows){
   const map=new Map(employees.map(e=>[e.id,e]));
@@ -111,6 +111,11 @@ function dtrCSV(employees,rows,pays,start,end){
 
 /* Employee records, wages and relationships commit together, including replacements. */
 async function saveEmployees(changes){
+ if(!DEMO&&Array.isArray(changes))changes=changes.map(change=>{
+  const old=E.find(e=>e.id===change.employee?.id);
+  if(old&&Object.hasOwn(change,'expected_revision')&&(old.revision??0)!==change.expected_revision)throw Error('Employee changed; reload before saving');
+  return change.employee&&Object.hasOwn(change.employee,'contact')?{...change,employee:{...change.employee,contact:contactValue(change.employee.contact,old?.contact)}}:change;
+ });
  return persistOperation('save_employees',{p_changes:changes},draft=>{
   if(!Array.isArray(changes)||!changes.length||changes.length>10000)throw Error('Select 1 to 10000 employees');
   const seen=new Set();

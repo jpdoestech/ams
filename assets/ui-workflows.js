@@ -55,7 +55,7 @@ async function saveQuickLookup(){
  }finally{if(button.isConnected)button.disabled=false}
 }
 document.addEventListener('change',e=>{if(e.target.id==='f_department')syncEmployeePosition()});
-document.addEventListener('click',e=>{const button=e.target.closest?.('[data-quick-add],[data-quick-save],[data-quick-cancel]');if(!button)return;if(button.hasAttribute('data-quick-add'))quickLookup(button.dataset.quickAdd);else if(button.hasAttribute('data-quick-save'))guard(saveQuickLookup);else closeM()});
+document.addEventListener('click',e=>{const button=e.target.closest?.('[data-quick-add],[data-quick-save],[data-quick-cancel]');if(!button)return;if(button.hasAttribute('data-quick-add'))quickLookup(button.dataset.quickAdd);else if(button.hasAttribute('data-quick-save'))guard(saveQuickLookup,button);else closeM()});
 
 function addressInput(id,kind,value='',region=''){
  const values=kind==='city'?AMSAddresses.citiesFor(region,LK).map(x=>x.value):lk('region');
@@ -91,7 +91,7 @@ async function saveRegionRate(region){
 }
 document.addEventListener('click',e=>{
  const button=e.target.closest?.('[data-region-rate],[data-region-rate-save]');if(!button)return;
- if(button.hasAttribute('data-region-rate'))regionRateModal(button.dataset.regionRate);else guard(()=>saveRegionRate(button.dataset.regionRateSave));
+ if(button.hasAttribute('data-region-rate'))regionRateModal(button.dataset.regionRate);else guard(()=>saveRegionRate(button.dataset.regionRateSave),button);
 });
 
 function formatContact(value){const digits=String(value||'').replace(/\D/g,'').slice(0,11);return [digits.slice(0,4),digits.slice(4,7),digits.slice(7,11)].filter(Boolean).join('-')}
