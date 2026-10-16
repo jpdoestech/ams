@@ -1,5 +1,5 @@
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict');
-const {database,asUser,ids}=require('./helpers');let db;
+const {database,asUser,ids,saveEmployee}=require('./helpers');let db;
 before(async()=>{db=await database()});after(async()=>{await db?.close()});
 test('only active superadmins can read or update audit settings and read audit history',async()=>{
  for(const id of [ids.staff,ids.viewer,ids.inactive])await asUser(db,id,async()=>{
@@ -14,10 +14,10 @@ test('disabled and selective auditing is enforced by database triggers; settings
  const count=async action=>(await db.query('select count(*)::int n from audit_log where action=$1',[action])).rows[0].n;
  const before=await count('employees.update');
  await asUser(db,ids.admin,()=>db.exec('update audit_settings set enabled=false where id=1'));
- await asUser(db,ids.staff,()=>db.exec(`update employees set contact='disabled audit' where id='${ids.emp}'`));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'disabled audit'}));
  assert.equal(await count('employees.update'),before);assert.equal(await count('audit_settings.update'),1);
  await asUser(db,ids.admin,()=>db.exec("update audit_settings set enabled=true,scopes=array['employees'] where id=1"));
- await asUser(db,ids.staff,()=>db.exec(`update employees set contact='enabled audit' where id='${ids.emp}'`));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'enabled audit'}));
  assert.equal(await count('employees.update'),before+1);
  const comments=await count('attendance_comments.insert');
  await asUser(db,ids.viewer,()=>db.exec(`insert into attendance_comments(emp_id,date,body,author_email) values('${ids.emp}','2026-10-01','Saved by viewer','viewer@test.local')`));

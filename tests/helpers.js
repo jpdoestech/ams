@@ -22,6 +22,10 @@ async function asUser(db,id,fn){
  await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${id}',false);`);
  try{return await fn()}finally{await db.exec(`reset role;select set_config('request.jwt.claim.sub','',false)`)}
 }
+async function saveEmployee(db,employee,extra={}){
+ const row=(await db.query('select revision from employees where id=$1',[employee.id])).rows[0];
+ return db.query('select save_employees($1::jsonb)',[JSON.stringify([{employee,expected_revision:row?Number(row.revision):null,...extra}])]);
+}
 async function browser({supabaseClient}={}){
  const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://ams.test',runScripts:'outside-only'});
  dom.window.confirm=()=>true;dom.window.alert=()=>{};
@@ -33,4 +37,4 @@ async function browser({supabaseClient}={}){
  await new Promise(resolve=>setTimeout(resolve,50));
  return dom;
 }
-module.exports={database,asUser,browser,ids};
+module.exports={database,asUser,browser,ids,saveEmployee};

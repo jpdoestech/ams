@@ -44,3 +44,9 @@ test('every existing screen renders and invalid preview inputs display validatio
 test('breaks outside actual shift use centered duration, not ignored time',()=>{
  const value=w.eval(`(()=>{DB=[{emp_id:E[0].id,kind:'break',t_start:'12:00',t_end:'13:00'}];const r=calcFor(E[0],'2026-10-14',{tin:'18:00',tout:'23:00',brk:60});DB=[];return r.workedMin})()`);assert.equal(value,240);
 });
+
+test('CSV exports neutralize formula text and leading controls while preserving numeric values',()=>{
+ const rows=w.eval(`parseCSV(toCSV([['=1+1','+SUM(A1)','-1+2','@SUM(A1)','  =1+1','\\t=1+1','\\r=1+1','\\n=1+1',-25,0,'normal','a,"b','line1\\nline2']]))`)[0];
+ for(const cell of rows.slice(0,8))assert.ok(cell.startsWith("'"),cell);
+ assert.deepEqual(Array.from(rows.slice(8)),['-25','0','normal','a,"b','line1\nline2']);
+});

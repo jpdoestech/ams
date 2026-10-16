@@ -108,3 +108,50 @@ function dtrCSV(employees,rows,pays,start,end){
   }
   return result;
 }
+
+/* Employee records, wages and relationships commit together, including replacements. */
+async function saveEmployees(changes){
+ return persistOperation('save_employees',{p_changes:changes},draft=>{
+  if(!Array.isArray(changes)||!changes.length||changes.length>10000)throw Error('Select 1 to 10000 employees');
+  const seen=new Set();
+  for(const c of changes){
+   const id=c.employee?.id,old=draft.employees.find(e=>e.id===id);
+   if(!id||!Object.hasOwn(c,'expected_revision'))throw Error('Employee and expected revision required');
+   if(seen.has(id))throw Error('Duplicate employee in batch');seen.add(id);
+   if((old?old.revision??0:null)!==c.expected_revision)throw Error('Employee changed; reload before saving');
+   const row={status:'Active',time_in:'08:00',time_out:'17:00',rest_day:'Sun',hire_type:'new',rate_override:true,...old,...c.employee,revision:(old?.revision??0)+1};
+   if(!row.emp_no?.trim()||!row.last_name?.trim())throw Error('Employee No and Last Name are required');
+   if(draft.employees.some(e=>e.id!==id&&e.emp_no===row.emp_no))throw Error('Employee No already exists');
+   if(row.position&&!positionsFor(row.department).includes(row.position)&&!(old?.department===row.department&&old?.position===row.position))throw Error('Position must belong to the selected department');
+   if(c.pay){
+    const p=c.pay;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(p.effective_from)||new Date(p.effective_from+'T00:00:00Z').toISOString().slice(0,10)!==p.effective_from||!Number.isFinite(p.hrs_per_day)||p.hrs_per_day<=0||p.hrs_per_day>24||typeof p.holiday_covered!=='boolean'||p.daily_rate!=null&&(!Number.isFinite(p.daily_rate)||p.daily_rate<0))throw Error('Invalid pay profile');
+    if(draft.wage_history.some(w=>w.emp_id===id&&w.effective_from===p.effective_from))throw Error('That wage date already exists; choose a new effective date');
+    const wage={...p,id:uid(),emp_id:id};draft.wage_history.push(wage);demoAudit('wage_history',null,wage,draft);
+   }
+   if(c.supervisor_ids){
+    if(!Array.isArray(c.supervisor_ids)||new Set(c.supervisor_ids).size!==c.supervisor_ids.length||c.supervisor_ids.some(id=>!draft.supervisors.some(s=>s.id===id)))throw Error('Invalid supervisors');
+    for(const link of draft.emp_supervisors.filter(x=>x.emp_id===id))demoAudit('emp_supervisors',link,null,draft);
+    draft.emp_supervisors=draft.emp_supervisors.filter(x=>x.emp_id!==id);
+    for(const sup_id of c.supervisor_ids){const link={emp_id:id,sup_id};draft.emp_supervisors.push(link);demoAudit('emp_supervisors',null,link,draft)}
+   }
+   if(Object.hasOwn(c,'source_revision')){
+    const source=draft.employees.find(e=>e.id===row.replaces_emp_id);
+    if(old||row.hire_type!=='replacement'||!source||source.id===id)throw Error('Invalid replacement employee');
+    if((source.revision??0)!==c.source_revision)throw Error('Replaced employee changed; reload before saving');
+    const blocks=assignmentBlocks(source.id).map(b=>({...b,id:uid(),emp_id:id}));
+    if(blocks.length){
+     const from=row.date_hired||manilaToday();
+     if(LOCKS.some(l=>l.end_date>=from))throw Error('Effective date affects finalized attendance; choose a later date');
+     if(blocks.length>48)throw Error('Invalid assignment or schedule');
+     draft.employee_assignment_versions.push({id:uid(),emp_id:id,version_no:draft.employee_assignment_versions.length+1,effective_from:from,snapshot:{employee:assignmentFields(row),blocks},reason:'Copied replacement schedule',created_by:actorId(),created_at:new Date().toISOString()});
+    }
+    if(c.replacement_status){const updated={...source,status:c.replacement_status,revision:(source.revision??0)+1};draft.employees[draft.employees.indexOf(source)]=updated;demoAudit('employees',source,updated,draft)}
+   }
+   demoCaptureAssignment('employees',old,row,draft);
+   if(old)draft.employees[draft.employees.indexOf(old)]=row;else draft.employees.push(row);
+   demoAudit('employees',old,row,draft);
+  }
+  return changes.length;
+ });
+}

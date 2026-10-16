@@ -30,7 +30,7 @@ api/
   sync.js                       Authenticated Supabase → Google Sheets sync
 supabase/
   schema.sql                    Generated complete fresh-install schema
-  migrations/                   Ordered additive migrations 001–012
+  migrations/                   Ordered additive migrations 001–014
 scripts/                        Static build and schema-generation scripts
 tests/                          PostgreSQL, calculation, DOM, and API tests
 docs/DEPLOYMENT.md               Supabase, Vercel, Google setup and rollout
@@ -69,3 +69,13 @@ Open `index.html` for browser-only demo mode, or serve the repository with a loc
 - Google credentials stay in Vercel. Sync validates Supabase authentication and role and waits for Google confirmation.
 
 See [deployment](docs/DEPLOYMENT.md), [user guide](docs/USER-GUIDE.md), and [pay rules and remaining boundaries](docs/DUTY-PAY-RULES.md). Production credentials and a live deployment are not included in this repository.
+
+## Employee regions and daily rates
+
+Apply migration `013_regional_rate_defaults.sql` before deploying the updated frontend. In Standards → Standard values → Regions, use **Set rate** to configure a regional default. Rates are configured by your team; the app does not supply statutory wage amounts.
+
+Employee Region and City fields accept typing and show matching address suggestions. Region supplies the default daily rate when the pay profile is saved; City determines city holiday matching. Enable **Override regional daily rate** to use an employee-specific amount. Existing employee wages remain overrides until you turn that option off. Regional defaults are saved through the existing dated wage history; changing a Standard does not rewrite saved wages or finalized pay.
+
+Department and position additions open a separate dialog and return to the employee draft when saved or canceled.
+
+Employee forms and employee CSV imports now use `save_employees` to commit employee details, wage changes, supervisors, and replacement setup together. Apply migration `014_atomic_employee_saves.sql` after 013 before deploying, then reload open browser tabs. Stale employee or schedule drafts are rejected instead of overwriting newer changes. Direct authenticated employee inserts/updates are disabled; integrations must use the revision-checked RPC. CSV exports prefix potentially executable text with an apostrophe; numeric values remain numeric.

@@ -47,3 +47,21 @@ test('viewer can open employee information by keyboard without editing fields or
   assert.ok(d.querySelector('[data-act=eformschedule]'));
  }finally{dom.window.close()}
 });
+
+test('employee form rejects stale saves even after the workspace has refreshed',async()=>{
+ const dom=await browser(),w=dom.window,d=w.document;
+ try{
+  w.eval(`V='emp';shell();eform(E[0].id);globalThis.staleEmployeeId=E[0].id;globalThis.originalConfirmation=confirmAction;confirmAction=async()=>true`);
+  const input=d.querySelector('#f_contact');input.value='Stale draft';
+  await w.eval(`saveEmployees([{employee:{id:staleEmployeeId,contact:'Other editor'},expected_revision:0}]);load()`);
+  w.eval(`act('esave',staleEmployeeId)`);await tick();await tick();
+  assert.equal(w.eval(`S.employees.find(e=>e.id===staleEmployeeId).contact`),'Other editor');assert.equal(d.querySelector('#f_contact'),input);assert.equal(input.value,'Stale draft');assert.match(d.querySelector('#toast').textContent,/Employee changed/);
+ }finally{await tick();w.close()}
+});
+test('invalid employee pay is rejected without creating an employee',async()=>{
+ const dom=await browser(),w=dom.window,d=w.document;
+ try{
+  w.eval(`V='emp';shell();eform()`);d.querySelector('#f_emp_no').value='INVALID-PAY';d.querySelector('#f_last_name').value='Invalid';d.querySelector('#p_override').checked=true;d.querySelector('#p_rate').value='-1';
+  w.eval(`act('esave')`);await tick();assert.equal(w.eval(`S.employees.some(e=>e.emp_no==='INVALID-PAY')`),false);assert.ok(d.querySelector('#f_last_name'));assert.match(d.querySelector('#toast').textContent,/Invalid pay profile/);
+ }finally{await tick();w.close()}
+});

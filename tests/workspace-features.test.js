@@ -38,7 +38,7 @@ test('demo audit scopes include selected categories only and retain settings cha
   await w.eval('saveAttendance([changeFor(E[0].id,days()[0],{type:"ABSENT"})])');assert.equal(w.eval('S.audit_log.length'),before);
   await w.eval('API.up("employees",[{...E[0],contact:"Changed"}])');assert.equal(w.eval('S.audit_log.at(-1).action'),'employees.update');
   await w.eval('API.up("audit_settings",[{id:1,enabled:false,scopes:[]}])');assert.equal(w.eval('S.audit_log.at(-1).action'),'audit_settings.update');
-  const disabled=w.eval('S.audit_log.length');await w.eval('API.up("employees",[{...E[0],contact:"Again"}])');assert.equal(w.eval('S.audit_log.length'),disabled);
+  const disabled=w.eval('S.audit_log.length');await w.eval('load()');await w.eval('API.up("employees",[{...E[0],contact:"Again"}])');assert.equal(w.eval('S.audit_log.length'),disabled);
   w.eval('ROLE="staff"');await assert.rejects(w.eval('auditList()'),/Superadmin only/);
  }finally{await new Promise(resolve=>setTimeout(resolve,20));w.close()}
 });

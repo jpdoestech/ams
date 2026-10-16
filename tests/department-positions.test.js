@@ -1,5 +1,5 @@
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict');
-const {database,asUser,ids}=require('./helpers');let db;
+const {database,asUser,ids,saveEmployee}=require('./helpers');let db;
 before(async()=>{db=await database();await db.exec("insert into lookups(id,kind,value) values ('80000000-0000-4000-8000-000000000001','department','Operations'),('80000000-0000-4000-8000-000000000002','position','Coordinator'),('80000000-0000-4000-8000-000000000003','department','Finance')")});after(async()=>{await db?.close()});
 const department='80000000-0000-4000-8000-000000000001',position='80000000-0000-4000-8000-000000000002';
 test('staff can map positions, viewers cannot change mappings, and lookup kinds are checked',async()=>{
@@ -9,10 +9,10 @@ test('staff can map positions, viewers cannot change mappings, and lookup kinds 
  await asUser(db,ids.viewer,async()=>assert.equal((await db.query('select * from department_positions')).rows.length,1));
 });
 test('employee mutations enforce department membership without losing existing data',async()=>{
- await asUser(db,ids.staff,()=>db.query("update employees set department='Operations',position='Coordinator' where id=$1",[ids.emp]));
- await asUser(db,ids.staff,()=>assert.rejects(db.query("update employees set department='Finance' where id=$1",[ids.emp]),/Position must belong/));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,department:'Operations',position:'Coordinator'}));
+ await asUser(db,ids.staff,()=>assert.rejects(saveEmployee(db,{id:ids.emp,department:'Finance'}),/Position must belong/));
  assert.equal((await db.query('select department from employees where id=$1',[ids.emp])).rows[0].department,'Operations');
- await asUser(db,ids.staff,()=>db.query("update employees set contact='unchanged assignment' where id=$1",[ids.emp]));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'unchanged assignment'}));
 });
 test('migration backfills legacy assignments without rewriting employee values',async()=>{
  const fs=require('node:fs');

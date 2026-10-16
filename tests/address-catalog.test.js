@@ -19,13 +19,13 @@ test('saved holiday city and region aliases remain usable without database write
 });
 test('employee and store region changes clear incompatible city selections; references show in Standards',()=>{
  w.eval(`V='emp';shell();eform(E[0].id)`);
- const reg=w.document.getElementById('f_location_region');assert.ok(reg);
+ const reg=w.document.getElementById('f_region');assert.ok(reg);
  reg.value='Davao Region';reg.dispatchEvent(new w.Event('change',{bubbles:true}));
  const city=w.document.getElementById('f_location');assert.equal(city.value,'');
- assert.ok([...city.options].some(x=>x.value==='Davao City'));assert.ok(![...city.options].some(x=>x.value==='Manila'));
+ assert.ok([...city.list.options].some(x=>x.value==='Davao City'));assert.ok(![...city.list.options].some(x=>x.value==='Manila'));
  w.eval(`storeM(ST[0].id)`);const storeReg=w.document.getElementById('str');
  storeReg.value='NCR';storeReg.dispatchEvent(new w.Event('change',{bubbles:true}));
- assert.equal(w.document.getElementById('stc').value,'');assert.ok(![...w.document.getElementById('stc').options].some(x=>x.value==='Davao City'));
+ assert.equal(w.document.getElementById('stc').value,'');assert.ok(![...w.document.getElementById('stc').list.options].some(x=>x.value==='Davao City'));
  w.eval(`closeM();V='std';LKK='region';shell()`);assert.match(w.document.getElementById('mn').textContent,/Reference/);
  assert.equal(w.document.querySelectorAll('[data-act=lkdel][data-id^="address:"]').length,0);
 });

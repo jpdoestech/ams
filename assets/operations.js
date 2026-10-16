@@ -88,7 +88,7 @@ async function saveAssignment(id,from,assignment,blocks,reason){
   if(draft.attendance.some(r=>r.emp_id===id&&r.date>=from&&['submitted','approved'].includes(reviewStatus(r))))throw Error('Return affected attendance before changing its schedule');
   if(assignment.position&&!positionsFor(assignment.department).includes(assignment.position))throw Error('Position must belong to the selected department');
   if(!draft.employee_assignment_versions.some(v=>v.emp_id===id))draft.employee_assignment_versions.push({id:uid(),emp_id:id,version_no:draft.employee_assignment_versions.length+1,effective_from:'0001-01-01',snapshot:{employee:assignmentFields(e),blocks:structuredClone(blocksOf(id))},reason:'Legacy baseline'});
-  const row={id:uid(),version_no:draft.employee_assignment_versions.length+1,emp_id:id,effective_from:from,snapshot:{employee:assignment,blocks},reason:reason.trim(),created_by:actorId(),created_at:new Date().toISOString()};draft.employee_assignment_versions.push(row);demoAudit('employee_assignment_versions',null,row,draft);return row.id;
+  const row={id:uid(),version_no:draft.employee_assignment_versions.length+1,emp_id:id,effective_from:from,snapshot:{employee:assignment,blocks},reason:reason.trim(),created_by:actorId(),created_at:new Date().toISOString()};draft.employee_assignment_versions.push(row);const employee=draft.employees.find(x=>x.id===id),updated={...employee,revision:(employee.revision??0)+1};draft.employees[draft.employees.indexOf(employee)]=updated;demoAudit('employees',employee,updated,draft);demoAudit('employee_assignment_versions',null,row,draft);return row.id;
  });
 }
 function scheduleControls(id){
