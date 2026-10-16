@@ -9,5 +9,5 @@
   if(root.AMS_CONFIG?.URL)await load(new URL('supabase-js.js',base).href);
   await load(new URL('app.js',base).href);
   }finally{done()}
- })().catch(error=>{const message=document.createElement('p');message.setAttribute('role','alert');message.className='bootstrap-error';message.textContent=error.message+'. Refresh the page to retry.';document.getElementById('app').replaceChildren(message)});
+ })().catch(error=>root.AMSUI.notify(error.message+'. Refresh the page to retry.',{error:true}));
 })(globalThis);

@@ -257,16 +257,19 @@ async function run(){
    return route.fulfill({status:422,headers,contentType:'application/json',body:JSON.stringify({message:'Email address is invalid',code:'email_address_invalid'})});
   });
   await authPage.goto('http://127.0.0.1:'+port);await authPage.waitForSelector('#le');await authPage.selectOption('select[data-theme-preference]','dark');
-  await authPage.locator('#le').fill('person@example.com');await authPage.locator('#lp').fill('incorrect password');await authPage.locator('[data-act="in"]').click();await authPage.waitForFunction(()=>document.querySelector('[data-act="in"]').getAttribute('aria-busy')==='true');
+  await authPage.locator('#le').fill('person@example.com');await authPage.locator('#lp').fill('incorrect password');const loginLayout=await authPage.locator('.login').boundingBox();await authPage.locator('[data-act="in"]').click();await authPage.waitForFunction(()=>document.querySelector('[data-act="in"]').getAttribute('aria-busy')==='true');
   assert.equal(await authPage.locator('[data-act="up"]').isDisabled(),true);assert.equal(await authPage.locator('#async-status').isVisible(),true);
   await authPage.screenshot({path:'test-results/ui/login-loading.png',animations:'disabled'});
   for(let attempt=0;!releaseLogin&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(releaseLogin,'Login request reached the mocked endpoint');releaseLogin();
-  await authPage.waitForFunction(()=>document.getElementById('auth-feedback').textContent.includes('invalid_credentials'));assert.equal(loginRequests,1);assert.equal(await authPage.locator('[data-act="in"]').isEnabled(),true);assert.equal(await authPage.locator('#async-status').isVisible(),false);
-  assert.match(await authPage.locator('#auth-feedback').innerText(),/Invalid login credentials/);
+  await authPage.waitForFunction(()=>document.getElementById('toast').textContent.includes('invalid_credentials'));assert.equal(loginRequests,1);assert.equal(await authPage.locator('[data-act="in"]').isEnabled(),true);assert.equal(await authPage.locator('#async-status').isVisible(),false);
+  assert.match(await authPage.locator('#toast').innerText(),/Invalid login credentials/);
+  assert.deepEqual(await authPage.locator('.login').boundingBox(),loginLayout,'Error popup does not move or resize login');assert.equal(await authPage.locator('#toast').evaluate(el=>getComputedStyle(el).position),'fixed');
+  for(const field of ['#le','#lp'])assert.equal(await authPage.locator(field).getAttribute('aria-invalid'),'true');
   await authPage.screenshot({path:'test-results/ui/login-invalid-credentials-dark.png',animations:'disabled'});
-  await authPage.setViewportSize({width:320,height:740});await authPage.selectOption('select[data-theme-preference]','light');await authPage.locator('#auth-feedback').scrollIntoViewIfNeeded();
+  await authPage.setViewportSize({width:320,height:740});await authPage.selectOption('select[data-theme-preference]','light');await authPage.locator('#toast').scrollIntoViewIfNeeded();
   assert.equal(await authPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await authPage.screenshot({path:'test-results/ui/login-invalid-credentials-mobile.png',animations:'disabled'});
-  await authPage.locator('[data-act="up"]').click();await authPage.waitForFunction(()=>document.getElementById('auth-feedback').textContent.includes('email_address_invalid'));assert.match(await authPage.locator('#auth-feedback').innerText(),/Email address is invalid/);await authPage.close();
+  const notification=await authPage.locator('#toast').boundingBox();assert.ok(notification.x>=0&&notification.x+notification.width<=320);assert.ok(notification.y>=0&&notification.y+notification.height<=740);
+  await authPage.getByRole('button',{name:'Dismiss notification'}).click();await authPage.locator('[data-act="up"]').click();await authPage.waitForFunction(()=>document.getElementById('toast').textContent.includes('email_address_invalid'));assert.match(await authPage.locator('#toast').innerText(),/Email address is invalid/);assert.equal(await authPage.locator('#le').getAttribute('aria-invalid'),'true');assert.equal(await authPage.locator('#lp').getAttribute('aria-invalid'),null);await authPage.close();
   assert.deepEqual(errors,[]);console.log('Browser checks passed: all screens, themes, employee actions, compact rows, summary, analytics, audit settings, saved viewer comments, duty-code list, mobile navigation, and nine responsive viewport sizes.');
  }finally{await browser?.close();server.kill()}
 }
