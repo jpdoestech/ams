@@ -18,7 +18,7 @@
     const accept=document.createElement('button');accept.type='button';accept.className='btn '+(deleting?'danger':'p');accept.textContent=options.confirmText||(deleting?'Delete':'Confirm');
     const header=document.createElement('header');header.className='confirm-header';header.append(eyebrow,heading);
     const body=document.createElement('div');body.className='confirm-body';body.append(description);
-    actions.append(cancel,accept);dialog.append(header,body,actions);layer.append(dialog);document.body.append(layer);
+    actions.append(cancel,accept);root.AMSUI?.enhance(actions);dialog.append(header,body,actions);layer.append(dialog);document.body.append(layer);
     const background=['app','ov','menu'].map(id=>document.getElementById(id)).filter(Boolean).map(el=>({el,inert:el.inert}));
     background.forEach(({el})=>{el.inert=true});
     function finish(accepted){

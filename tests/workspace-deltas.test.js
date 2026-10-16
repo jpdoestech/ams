@@ -34,3 +34,11 @@ test('shared refresh pauses for hidden tabs, dialogs, controls, saves, and missi
  w.eval(`attendanceSaving=false;document.getElementById('fq').focus()`);assert.equal(w.eval('workspaceCanRefresh()'),false);w.eval(`document.getElementById('mn').focus();workspaceRpcUnavailable=true`);assert.equal(w.eval('workspaceCanRefresh()'),false);
  w.eval(`workspaceRpcUnavailable=false;Object.defineProperty(document,'hidden',{configurable:true,value:true})`);assert.equal(w.eval('workspaceCanRefresh()'),false);
 });
+
+test('a changed cutoff fetches its actual range before publishing and failures preserve the old date mapping',async()=>{
+ w.eval(`cut={m:'2027-01',h:1}`);const first=full();responses.push({data:first});await w.eval('load()');const before=w.eval('JSON.stringify(A)');
+ const updated=full();updated.catalog.cutoff_schedules=[{id:'cutoff',effective_month:'2027-01-01',first_end:10,second_end:25,version_no:1}];updated.catalog_token='staff:2';
+ responses.push({data:updated},{error:{code:'TEST',message:'Range fetch failed'}});await assert.rejects(w.eval('load()'),error=>/Range fetch failed/.test(error.message));
+ assert.deepEqual(Array.from(w.eval('rng()')),['2027-01-01','2027-01-15']);assert.equal(w.eval('JSON.stringify(A)'),before);assert.equal(w.eval('CUTOFFS.length'),0);
+ responses.push({data:updated},{data:updated});await w.eval('load()');assert.deepEqual(Array.from(w.eval('rng()')),['2026-12-26','2027-01-10']);assert.equal(requests.at(-1).args.p_start,'2026-12-26');assert.equal(requests.at(-1).args.p_end,'2027-01-10');assert.equal(w.eval('AMSLoadTiming.requests'),2);
+});

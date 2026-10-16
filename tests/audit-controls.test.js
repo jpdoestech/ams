@@ -14,10 +14,10 @@ test('disabled and selective auditing is enforced by database triggers; settings
  const count=async action=>(await db.query('select count(*)::int n from audit_log where action=$1',[action])).rows[0].n;
  const before=await count('employees.update');
  await asUser(db,ids.admin,()=>db.exec('update audit_settings set enabled=false where id=1'));
- await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'disabled audit'}));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'0917-111-1111'}));
  assert.equal(await count('employees.update'),before);assert.equal(await count('audit_settings.update'),1);
  await asUser(db,ids.admin,()=>db.exec("update audit_settings set enabled=true,scopes=array['employees'] where id=1"));
- await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'enabled audit'}));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'0917-222-2222'}));
  assert.equal(await count('employees.update'),before+1);
  const comments=await count('attendance_comments.insert');
  await asUser(db,ids.viewer,()=>db.exec(`insert into attendance_comments(emp_id,date,body,author_email) values('${ids.emp}','2026-10-01','Saved by viewer','viewer@test.local')`));

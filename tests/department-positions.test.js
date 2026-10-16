@@ -12,7 +12,7 @@ test('employee mutations enforce department membership without losing existing d
  await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,department:'Operations',position:'Coordinator'}));
  await asUser(db,ids.staff,()=>assert.rejects(saveEmployee(db,{id:ids.emp,department:'Finance'}),/Position must belong/));
  assert.equal((await db.query('select department from employees where id=$1',[ids.emp])).rows[0].department,'Operations');
- await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'unchanged assignment'}));
+ await asUser(db,ids.staff,()=>saveEmployee(db,{id:ids.emp,contact:'0919-123-4567'}));
 });
 test('migration backfills legacy assignments without rewriting employee values',async()=>{
  const fs=require('node:fs');

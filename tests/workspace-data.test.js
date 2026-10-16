@@ -4,18 +4,18 @@ let dom,w;
 beforeEach(async()=>{dom=await browser();w=dom.window});afterEach(()=>dom.window.close());
 function spy(){w.eval(`globalThis.originalList=API.list.bind(API);globalThis.loadCalls=[];globalThis.activeLoads=0;globalThis.peakLoads=0;API.list=async(t,r)=>{loadCalls.push(t);activeLoads++;peakLoads=Math.max(peakLoads,activeLoads);try{await new Promise(resolve=>setTimeout(resolve,5));return await originalList(t,r)}finally{activeLoads--}}`)}
 test('workspace loads all datasets in parallel with a bounded request count',async()=>{
- spy();await w.eval('load()');assert.equal(w.eval('loadCalls.length'),19);assert.equal(w.eval('new Set(loadCalls).size'),19);assert.equal(w.eval('peakLoads'),6);assert.equal(w.eval('activeLoads'),0);
- assert.equal(w.eval('AMSLoadTiming.datasets'),19);assert.ok(w.eval('E.length>0'));
+ spy();await w.eval('load()');assert.equal(w.eval('loadCalls.length'),20);assert.equal(w.eval('new Set(loadCalls).size'),20);assert.equal(w.eval('peakLoads'),6);assert.equal(w.eval('activeLoads'),0);
+ assert.equal(w.eval('AMSLoadTiming.datasets'),20);assert.ok(w.eval('E.length>0'));
 });
 test('navigation reuses fresh data while refresh, expiry, role and range changes reload',async()=>{
  spy();await w.eval(`navigateWorkspace('emp');navigateWorkspace('std')`);assert.equal(w.eval('loadCalls.length'),0);
- await w.eval(`navigateWorkspace('std')`);assert.equal(w.eval('loadCalls.length'),19);
- w.eval('loadCalls=[];workspaceLoadedAt=Date.now()-16000');await w.eval('load({reuse:true})');assert.equal(w.eval('loadCalls.length'),19);
+ await w.eval(`navigateWorkspace('std')`);assert.equal(w.eval('loadCalls.length'),20);
+ w.eval('loadCalls=[];workspaceLoadedAt=Date.now()-16000');await w.eval('load({reuse:true})');assert.equal(w.eval('loadCalls.length'),20);
  w.eval(`loadCalls=[];ROLE='viewer'`);await w.eval('load({reuse:true})');assert.equal(w.eval('loadCalls.includes("wage_history")'),false);assert.equal(w.eval('Object.keys(EP).length'),0);
  w.eval(`loadCalls=[];cut.h=cut.h===1?2:1`);await w.eval('load({reuse:true})');assert.ok(w.eval('loadCalls.length>0'));
 });
 test('overlapping navigation loads share one request batch',async()=>{
- spy();await w.eval('Promise.all([load(),load({reuse:true}),load({reuse:true})])');assert.equal(w.eval('loadCalls.length'),19);
+ spy();await w.eval('Promise.all([load(),load({reuse:true}),load({reuse:true})])');assert.equal(w.eval('loadCalls.length'),20);
 });
 test('failed dataset loading leaves the previous workspace intact and can retry',async()=>{
  const before=w.eval('JSON.stringify([E,H,LK,A,PH])');w.eval(`globalThis.originalList=API.list.bind(API);S.employees.push({id:'not-yet-published',last_name:'New',first_name:'Employee'});API.list=async(t,r)=>{if(t==='lookups')throw Error('Network unavailable');return originalList(t,r)}`);

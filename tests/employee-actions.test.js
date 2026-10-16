@@ -53,9 +53,9 @@ test('employee form rejects stale saves even after the workspace has refreshed',
  try{
   w.eval(`V='emp';shell();eform(E[0].id);globalThis.staleEmployeeId=E[0].id;globalThis.originalConfirmation=confirmAction;confirmAction=async()=>true`);
   const input=d.querySelector('#f_contact');input.value='Stale draft';
-  await w.eval(`saveEmployees([{employee:{id:staleEmployeeId,contact:'Other editor'},expected_revision:0}]);load()`);
+  await w.eval(`saveEmployees([{employee:{id:staleEmployeeId,contact:'0918-123-4567'},expected_revision:0}]);load()`);
   w.eval(`act('esave',staleEmployeeId)`);await tick();await tick();
-  assert.equal(w.eval(`S.employees.find(e=>e.id===staleEmployeeId).contact`),'Other editor');assert.equal(d.querySelector('#f_contact'),input);assert.equal(input.value,'Stale draft');assert.match(d.querySelector('#toast').textContent,/Employee changed/);
+  assert.equal(w.eval(`S.employees.find(e=>e.id===staleEmployeeId).contact`),'0918-123-4567');assert.equal(d.querySelector('#f_contact'),input);assert.equal(input.value,'Stale draft');assert.match(d.querySelector('#toast').textContent,/Employee changed/);
  }finally{await tick();w.close()}
 });
 test('invalid employee pay is rejected without creating an employee',async()=>{

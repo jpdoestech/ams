@@ -132,3 +132,19 @@ Editing deployment fields in the employee form records a change effective today.
 Open **Adjustments**, select a date range, and choose **New correction**. Enter an employee, finalized date, signed minute/amount differences, reason, and supporting reference. A correction must have a nonzero difference. A different superadmin reviews it and provides an approval/rejection reason. Decisions are final; a subsequent correction is another ledger entry. The original duty, pay snapshot, entitlement, and lock are preserved.
 
 The applied range has its own pending count and approved totals. **Export ledger** includes FROM/TO, identities, references, submitter/decision metadata, and signed differences. Approved adjustments remain separate from Attendance, Summary pay, Analytics, and Google reporting totals; reconcile them in the actual payroll process. This feature does not run payroll or automatically pay an allowance.
+
+## Contact numbers
+
+Employee and supervisor contacts are optional. Enter 11 digits beginning with `09`; the form displays `0917-123-4567`. New or changed invalid values are rejected, including CSV imports. Existing legacy text remains until edited.
+
+## Repeating cut-off schedules
+
+Superadmins configure **Standards → Cut-off schedules**. Choose the effective payroll month and two monthly boundaries, then check the displayed date preview before saving. Staff can view the settings.
+
+- First end **10**, second boundary **Day 25**: January uses December 26–January 10 and January 11–25. February uses January 26–February 10 and February 11–25.
+- First end **5**, second boundary **End of month**: January uses January 1–5 and January 6–31.
+- First end **15**, second boundary **End of month** restores the standard repeating pattern from the chosen month.
+
+The first end can be 1–27. The second boundary must be later, or End of month. Short months use their last day for boundaries 29–31. Each schedule repeats until a later effective version. Saving a new boundary also adjusts the preceding month's second cut-off to avoid overlaps and gaps; finalized dates block the change.
+
+Select the payroll month and first/second cut-off in Attendance, Summary, or Export. Cross-month column headings include the month. Review, locking, and Sheets sync use the same actual dates. Calendar-month reporting still means the whole calendar month.

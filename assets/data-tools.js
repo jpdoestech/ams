@@ -120,6 +120,7 @@ async function saveEmployees(changes){
    if(seen.has(id))throw Error('Duplicate employee in batch');seen.add(id);
    if((old?old.revision??0:null)!==c.expected_revision)throw Error('Employee changed; reload before saving');
    const row={status:'Active',time_in:'08:00',time_out:'17:00',rest_day:'Sun',hire_type:'new',rate_override:true,...old,...c.employee,revision:(old?.revision??0)+1};
+   row.contact=contactValue(row.contact,old?.contact);
    if(!row.emp_no?.trim()||!row.last_name?.trim())throw Error('Employee No and Last Name are required');
    if(draft.employees.some(e=>e.id!==id&&e.emp_no===row.emp_no))throw Error('Employee No already exists');
    if(row.position&&!positionsFor(row.department).includes(row.position)&&!(old?.department===row.department&&old?.position===row.position))throw Error('Position must belong to the selected department');

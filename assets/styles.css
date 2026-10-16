@@ -214,3 +214,14 @@ main[data-view="analytics"]{max-width:1800px}
 .review-status{display:inline-block;padding:2px 6px;border:1px solid var(--bd);border-radius:4px;font-size:11px;text-transform:capitalize}
 .review-status[data-status="approved"]{color:var(--chart-green)}.review-status[data-status="returned"]{color:var(--danger)}.review-status[data-status="submitted"]{background:var(--pr-soft);color:var(--pr-text)}
 .schedule-version-fields{flex:none;gap:8px;margin-bottom:5px}.schedule-version-fields input,.schedule-version-fields select{min-height:30px;padding:4px 7px}.schedule-version-fields .btn{align-self:end;min-height:30px}
+
+/* Native menus need explicit option colors on Windows in dark appearance. */
+select option,select optgroup{background:var(--sf);color:var(--tx)}
+.theme-control{color:var(--tx)}
+.theme-control select{color:var(--tx);width:76px}
+.confirm-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
+.confirm-actions .btn{width:100%;min-width:0;min-height:40px;white-space:normal}
+.confirm-actions .btn.danger:hover{background:var(--danger);border-color:var(--danger);color:var(--danger-on);filter:brightness(.94)}
+.users-table th,.users-table td{padding:5px 10px;line-height:1.4;height:38px}
+.users-table select{min-height:28px;height:28px;padding:3px 7px;font-size:11px;width:130px}
+.users-table input[type="checkbox"]{margin:0;min-height:16px}

@@ -20,6 +20,7 @@ assets/
   layout.js                     Saved desktop sidebar preference before paint
   ui.js                         SVG icons, controls and navigation accessibility
   ui-workflows.js               Fixed modal chrome, filter indicators, dependent lookups
+  cutoff-schedules.js           Repeating payroll boundaries and Standards settings
   operations.js                 Attendance review, dated assignments, adjustment ledger
   workspace-data.js             Conditional workspace RPC, deltas, shared-user refresh
   data-indexes.js                Indexed wage/rule/calendar lookups
@@ -30,7 +31,7 @@ api/
   sync.js                       Authenticated Supabase → Google Sheets sync
 supabase/
   schema.sql                    Generated complete fresh-install schema
-  migrations/                   Ordered additive migrations 001–014
+  migrations/                   Ordered additive migrations 001–016
 scripts/                        Static build and schema-generation scripts
 tests/                          PostgreSQL, calculation, DOM, and API tests
 docs/DEPLOYMENT.md               Supabase, Vercel, Google setup and rollout
@@ -79,3 +80,11 @@ Employee Region and City fields accept typing and show matching address suggesti
 Department and position additions open a separate dialog and return to the employee draft when saved or canceled.
 
 Employee forms and employee CSV imports now use `save_employees` to commit employee details, wage changes, supervisors, and replacement setup together. Apply migration `014_atomic_employee_saves.sql` after 013 before deploying, then reload open browser tabs. Stale employee or schedule drafts are rejected instead of overwriting newer changes. Direct authenticated employee inserts/updates are disabled; integrations must use the revision-checked RPC. CSV exports prefix potentially executable text with an apostrophe; numeric values remain numeric.
+
+## Repeating cut-offs and contact numbers
+
+Apply migrations **015_contact_numbers.sql** and **016_repeating_cutoffs.sql**, in order, before deploying these changes. Contacts remain optional; new or changed employee and supervisor numbers must contain exactly 11 digits starting with `09`. Forms format them as `0917-123-4567`; the database validates and formats direct writes too. Legacy contact text is preserved until changed.
+
+In **Standards → Cut-off schedules**, a Superadmin chooses an effective payroll month, first cut-off end day, and second monthly boundary. First end **10** and second boundary **25** repeat as Dec 26–Jan 10 and Jan 11–25 for January, then Jan 26–Feb 10 and Feb 11–25. First end **5** with **End of month** gives Jan 1–5 and Jan 6–31. First end is limited to 1–27 so both periods exist in February; boundaries after the last day of a short month use that last day.
+
+Schedules have immutable versions. A change can adjust the preceding month's second period to keep dates contiguous. Changes affecting finalized dates are rejected. Without a configured schedule, cut-offs remain 1–15 and 16–end. Attendance, Dashboard, review, Summary cut-off mode, exports, sync, and finalization share the resolved dates. Calendar-month and explicit date-range reporting remain available.

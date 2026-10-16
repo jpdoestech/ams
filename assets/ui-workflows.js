@@ -93,3 +93,17 @@ document.addEventListener('click',e=>{
  const button=e.target.closest?.('[data-region-rate],[data-region-rate-save]');if(!button)return;
  if(button.hasAttribute('data-region-rate'))regionRateModal(button.dataset.regionRate);else guard(()=>saveRegionRate(button.dataset.regionRateSave));
 });
+
+function formatContact(value){const digits=String(value||'').replace(/\D/g,'').slice(0,11);return [digits.slice(0,4),digits.slice(4,7),digits.slice(7,11)].filter(Boolean).join('-')}
+function contactValue(value,previous){
+ const text=String(value||'').trim();if(!text)return null;
+ if(text===previous&&!/^09\d{9}$|^09\d{2}-\d{3}-\d{4}$/.test(text))return previous;
+ if(!/^09\d{9}$|^09\d{2}-\d{3}-\d{4}$/.test(text))throw Error('Contact number must contain 11 digits and start with 09');
+ return formatContact(text);
+}
+function contactInput(id,value){const text=/^09\d{9}$|^09\d{2}-\d{3}-\d{4}$/.test(value||'')?formatContact(value):value||'';return `<input id="${id}" type="tel" data-contact inputmode="numeric" autocomplete="tel-national" maxlength="13" pattern="09[0-9]{2}-[0-9]{3}-[0-9]{4}" placeholder="0917-123-4567" value="${esc(text)}"><small class="mu">11 digits, starting with 09</small>`}
+document.addEventListener('input',event=>{
+ if(!event.target.matches('[data-contact]'))return;
+ const input=event.target,position=input.selectionStart,digitsBefore=input.value.slice(0,position).replace(/\D/g,'').length;
+ input.value=formatContact(input.value);const next=digitsBefore+(digitsBefore>4?1:0)+(digitsBefore>7?1:0);input.setSelectionRange(next,next);
+});

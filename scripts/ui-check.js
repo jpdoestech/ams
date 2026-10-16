@@ -22,7 +22,7 @@ async function run(){
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');await screenshot('dashboard-dark');
   await page.evaluate(()=>{globalThis.browserOriginalList=API.list.bind(API);globalThis.navigationReads=0;API.list=async(...args)=>{navigationReads++;return browserOriginalList(...args)}});
   await page.locator('.side-nav [data-v="emp"]').click();await page.waitForSelector('#emt');assert.equal(await page.evaluate(()=>navigationReads),0,'Fresh navigation reuses the workspace snapshot');
-  await page.locator('.breadcrumb [data-v="emp"]').click();await page.waitForFunction(()=>navigationReads===19&&document.querySelector('.workspace')?.getAttribute('aria-busy')!=='true');
+  await page.locator('.breadcrumb [data-v="emp"]').click();await page.waitForFunction(()=>navigationReads===20&&document.querySelector('.workspace')?.getAttribute('aria-busy')!=='true');
   await page.evaluate(()=>{API.list=browserOriginalList});
   for(const view of ['emp','att','sum','std','usr','analytics','audit']){
     await page.locator('.side-nav [data-v="'+view+'"]').click();await page.waitForSelector('#mn[data-view="'+view+'"]');
@@ -30,6 +30,29 @@ async function run(){
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Desktop overflow: '+view);
     await screenshot(view+'-dark');
   }
+  for(const theme of ['light','dark']){
+   await page.selectOption('select[data-theme-preference]',theme);
+   await page.evaluate(()=>{V='usr';shell()});await page.waitForSelector('.users-table tbody tr');
+   const users=await page.locator('.users-table tbody tr').evaluateAll(rows=>rows.map(row=>row.getBoundingClientRect().height));assert.ok(users.every(height=>height>=36&&height<=44),'Compact Users rows: '+users);
+   const colors=await page.locator('select[data-theme-preference] option').first().evaluate(option=>({text:getComputedStyle(option).color,background:getComputedStyle(option).backgroundColor,surface:getComputedStyle(document.documentElement).getPropertyValue('--sf').trim()}));assert.notEqual(colors.text,colors.background);assert.notEqual(colors.background,'rgba(0, 0, 0, 0)');
+   await screenshot('users-compact-'+theme);
+   await page.evaluate(()=>{void confirmAction('Delete acceptance test record?',{destructive:true})});await page.locator('[role=alertdialog]').waitFor();
+   const cancel=await page.locator('.confirm-actions button').first().boundingBox(),remove=await page.locator('.confirm-actions button').last().boundingBox();assert.ok(Math.abs(cancel.width-remove.width)<=1);assert.ok(cancel.height>=40&&remove.height>=40);assert.ok(remove.x>=cancel.x+cancel.width);
+   assert.ok(await page.locator('.confirm-actions button').last().evaluate(b=>getComputedStyle(b).color!==getComputedStyle(b).backgroundColor),'Delete label contrasts with its background');
+   await page.locator('.confirm-actions button').last().hover();await screenshot('delete-confirmation-'+theme);await page.locator('.confirm-actions button').first().click();
+  }
+  for(const [width,height] of [[320,740],[844,390]]){
+   await page.setViewportSize({width,height});await page.evaluate(()=>{void confirmAction('Delete this test record? '+('Existing saved history must remain readable. '.repeat(12)),{destructive:true})});await page.locator('[role=alertdialog]').waitFor();
+   for(const button of await page.locator('.confirm-actions button').all()){const box=await button.boundingBox();assert.ok(box.y>=0&&box.y+box.height<=height,'Confirmation actions stay visible');assert.ok(box.x>=0&&box.x+box.width<=width);assert.ok(await button.evaluate(b=>getComputedStyle(b).color!==getComputedStyle(b).backgroundColor),'Mobile confirmation labels remain visible')}
+   await screenshot('delete-confirmation-'+width);await page.keyboard.press('Escape');
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(()=>{V='std';STAB='cut';cut={m:'2027-01',h:1};cutoffSettingsMonth='2027-01';shell()});await page.locator('#cutoff-first').fill('10');await page.locator('#cutoff-second').selectOption('25');
+  assert.match(await page.locator('#cutoff-preview').innerText(),/2026-12-26 to 2027-01-10/);await page.locator('[data-cutoff-save]').click();await page.waitForFunction(()=>CUTOFFS.length===1);await screenshot('repeating-cutoff-settings');
+  await page.evaluate(()=>{V='att';shell()});assert.deepEqual(await page.evaluate(()=>rng()),['2026-12-26','2027-01-10']);assert.match(await page.locator('#gt thead').innerText(),/Dec 26/);await screenshot('cross-year-cutoff');
+  await page.evaluate(()=>exportM());assert.deepEqual(await page.evaluate(()=>pread('x')),['2026-12-26','2027-01-10']);await page.locator('#ov [data-act=cm]').first().click();
+  await page.evaluate(async()=>{S.cutoff_schedules=[];CUTOFFS=[];cut={m:manilaToday().slice(0,7),h:Number(manilaToday().slice(8))<=15?1:2};cutoffSettingsMonth='';STAB='val';await load();V='emp';shell();eform()});
+  await page.locator('#f_contact').fill('09171234567');assert.equal(await page.locator('#f_contact').inputValue(),'0917-123-4567');await screenshot('contact-number-format');await page.locator('#ov [data-act=cm]').first().click();
   await page.locator('.side-nav [data-v="att"]').click();await page.waitForSelector('#gt');
   await page.setViewportSize({width:1366,height:768});
   const help=page.locator('[data-help-toggle]'),panel=page.locator('#attendance-help');

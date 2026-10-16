@@ -4,7 +4,7 @@ let workspaceSnapshotCache=null,workspaceRpcUnavailable=false;
 const workspaceDataKey=()=>JSON.stringify([ROLE,P?.id||'',...rng()]);
 const workspaceCatalogKey=()=>JSON.stringify([ROLE,P?.id||'']);
 function resetWorkspaceCache(){workspaceLoadGeneration++;workspaceLoadedAt=0;workspaceLoadedKey='';workspaceInFlight=null;workspaceSnapshotCache=null;workspaceNavigation++}
-const catalogTables=['employee_assignment_versions','employees','holidays','field_defs','lookups','department_positions','stores','supervisors','supervisor_stores','emp_supervisors','duty_blocks','duty_pay_rules','cutoff_locks','wage_history','employee_pay'];
+const catalogTables=['employee_assignment_versions','employees','holidays','field_defs','lookups','department_positions','stores','supervisors','supervisor_stores','emp_supervisors','duty_blocks','duty_pay_rules','cutoff_locks','wage_history','employee_pay','cutoff_schedules'];
 const periodTables=['attendance','attendance_comments','attendance_pay','cutoff_snapshot_view'];
 async function workspaceTransport(range,full){
  if(DEMO||workspaceRpcUnavailable)return null;
@@ -27,12 +27,13 @@ function unpackWorkspaceSnapshot({payload,base,catalogKnown,periodKnown}){
  for(const table of catalogTables)if(!Array.isArray(catalog[table]))throw Error('Invalid workspace catalog');
  return{data:{...catalog,...period},catalog,period,tokens,payload,changed:!!payload.catalog||!!payload.period,catalogChanged:!!payload.catalog};
 }
-async function load({reuse=false,full=false,background=false}={}){
- const key=workspaceDataKey();
+async function load({reuse=false,full=false,background=false,pending=null}={}){
+ const sourceKey=workspaceDataKey(),selection=pending?.selection||cut,range=pending?AMSCutoffs.ranges(selection.m,pending.rows)[Number(selection.h)-1]:rng();
+ const key=JSON.stringify([ROLE,P?.id||'',...range]);
  if(reuse&&workspaceLoadedKey===key&&Date.now()-workspaceLoadedAt>=0&&Date.now()-workspaceLoadedAt<15000)return{changed:false};
  if(reuse&&workspaceInFlight?.key===key)return workspaceInFlight.promise;
- const generation=++workspaceLoadGeneration,range=rng(),writer=W(),started=performance.now();
- const tables=['employee_assignment_versions','employees','holidays','field_defs','attendance_comments','lookups','department_positions','stores','supervisors','supervisor_stores','emp_supervisors','duty_blocks','duty_pay_rules','cutoff_locks','cutoff_snapshot_view',...(writer?['wage_history','employee_pay','attendance_pay']:[]),'attendance'];
+ const generation=++workspaceLoadGeneration,writer=W(),started=pending?.started??performance.now();
+ const tables=['cutoff_schedules','employee_assignment_versions','employees','holidays','field_defs','attendance_comments','lookups','department_positions','stores','supervisors','supervisor_stores','emp_supervisors','duty_blocks','duty_pay_rules','cutoff_locks','cutoff_snapshot_view',...(writer?['wage_history','employee_pay','attendance_pay']:[]),'attendance'];
  const ranged=new Set(periodTables);
  const promise=(async()=>{
   const remote=await workspaceTransport(range,full);let snapshot=null,data={};
@@ -43,8 +44,11 @@ async function load({reuse=false,full=false,background=false}={}){
   const results=await Promise.allSettled(Array.from({length:Math.min(6,tables.length)},worker));
   const failure=results.find(r=>r.status==='rejected');if(failure)throw failure.reason;
   }
-  if(generation!==workspaceLoadGeneration||key!==workspaceDataKey())return;
+  if(generation!==workspaceLoadGeneration||sourceKey!==workspaceDataKey())return;
   if(background&&!workspaceCanRefresh())return{changed:false,deferred:true};
+  const resolved=cutoffSelection(data.cutoff_schedules),resolvedRange=AMSCutoffs.ranges(resolved.m,data.cutoff_schedules)[Number(resolved.h)-1];
+  if(range.join('|')!==resolvedRange.join('|'))return load({full:true,background,pending:{rows:data.cutoff_schedules,selection:resolved,started,requests:(pending?.requests??0)+(remote?1:tables.length)}});
+  CUTOFFS=data.cutoff_schedules;applyCurrentCutoff(resolved);
   if(snapshot){
    ROLE=snapshot.payload.role;if(P)P={...P,role:ROLE};
    workspaceSnapshotCache={catalogKey:workspaceCatalogKey(),periodKey:workspaceDataKey(),catalogToken:snapshot.payload.catalog_token,periodTokens:snapshot.tokens,catalog:snapshot.catalog,period:snapshot.period};
@@ -55,7 +59,7 @@ async function load({reuse=false,full=false,background=false}={}){
   LK=data.lookups;DPM=data.department_positions;ST=data.stores;SV=data.supervisors;SS=data.supervisor_stores;ES=data.emp_supervisors;DB=data.duty_blocks;RL=data.duty_pay_rules;LOCKS=data.cutoff_locks;CLOSED=data.cutoff_snapshot_view;
   PH=W()?data.wage_history:[];EP=Object.fromEntries((W()?data.employee_pay||[]:[]).map(r=>[r.emp_id,r]));AP=Object.fromEntries((W()?data.attendance_pay||[]:[]).map(r=>[r.emp_id+'|'+r.date,r]));A=Object.fromEntries(data.attendance.map(r=>[r.emp_id+'|'+r.date,r]));
   const today=manilaToday();E=E.map(e=>employeeAt(e,today));workspaceLoadedKey=workspaceDataKey();workspaceLoadedAt=Date.now();
-  globalThis.AMSLoadTiming={durationMs:Math.round(performance.now()-started),datasets:tables.length,requests:remote?1:tables.length,changedEmployees:snapshot?.payload.period?.employees.length||0};
+  globalThis.AMSLoadTiming={durationMs:Math.round(performance.now()-started),datasets:tables.length,requests:(pending?.requests??0)+(remote?1:tables.length),changedEmployees:snapshot?.payload.period?.employees.length||0};
   return snapshot?{changed:snapshot.changed,catalogChanged:snapshot.catalogChanged}:{changed:true,catalogChanged:true};
  })();
  workspaceInFlight={key,promise};

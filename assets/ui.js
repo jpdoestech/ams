@@ -78,7 +78,7 @@
         button.textContent='';button.setAttribute('aria-label',label);button.title=label;button.classList.add('icon-button');
       }else if(text.startsWith('+ '))button.textContent=text.slice(2);
       button.insertAdjacentHTML('afterbegin',icon(name));
-      if(name==='trash')button.classList.add('danger-ghost');
+      if(name==='trash'&&!button.classList.contains('danger'))button.classList.add('danger-ghost');
       if(!button.hasAttribute('type'))button.type='button';
     });
     const fields={q:'Search employees',fq:'Search attendance employees',fs:'Assignment location',fd:'Department',fp:'Position',cm:'Month',ch:'Cut-off',le:'Email address',lp:'Password',cb:'Comment',lkv:'New standard value'};
